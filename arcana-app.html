@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARCANA — Nutrition Performance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.21.3/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            abg: '#0D0D1A', acard: '#1A1A2E', acard2: '#16213E',
+            apurple: '#0DC9AA', apurpl: '#2DD4BF',
+            agreen: '#10B981', agold: '#F59E0B', ared: '#EF4444',
+            ablue: '#3B82F6'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background:#0D0D1A; color:#F9FAFB; font-family:system-ui,-apple-system,sans-serif; margin:0; }
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:#1A1A2E; } ::-webkit-scrollbar-thumb { background:#0DC9AA; border-radius:2px; }
+    input,textarea,select { background:rgba(255,255,255,0.06)!important; color:#F9FAFB!important; }
+    input::placeholder,textarea::placeholder { color:rgba(255,255,255,0.3)!important; }
+    .tab-active { border-bottom:2px solid #0DC9AA; color:#2DD4BF; }
+    .nav-active { background:rgba(13,201,170,0.15); color:#2DD4BF; }
+    .card-hover:hover { transform:translateY(-2px); transition:transform 0.2s; }
+    .fade-in { animation:fadeIn 0.3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:50;display:flex;align-items:center;justify-content:center; }
+    .pulse-dot { width:8px;height:8px;border-radius:50%;background:#10B981;animation:pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+
+const RECIPES = [
+  { id:1, name:'Porridge banane-amande', cat:'Petit déjeuner', time:10, kcal:380, p:18, g:55, l:10,
+    img:'🥣', tags:['sans gluten','végétarien'], allergens:[],
+    ingredients:['80g flocons d\'avoine','1 banane','20g amandes effilées','200ml lait végétal','1 c.à.c miel','cannelle'],
+    steps:['Chauffer le lait végétal à feu doux.','Ajouter les flocons et cuire 5 min en remuant.','Couper la banane en rondelles.','Dresser et garnir d\'amandes, miel et cannelle.'] },
+  { id:2, name:'Poulet grillé & riz basmati', cat:'Déjeuner', time:25, kcal:520, p:42, g:55, l:12,
+    img:'🍗', tags:['haute protéine'], allergens:[],
+    ingredients:['180g blanc de poulet','150g riz basmati','1 courgette','2 c.à.s huile d\'olive','herbes de Provence','sel, poivre'],
+    steps:['Cuire le riz 12 min à l\'eau bouillante salée.','Assaisonner le poulet, griller 6 min chaque côté.','Détailler la courgette et faire sauter 5 min.','Dresser et arroser d\'huile d\'olive.'] },
+  { id:3, name:'Saumon vapeur & légumes', cat:'Dîner', time:20, kcal:440, p:38, g:20, l:22,
+    img:'🐟', tags:['oméga-3','sans gluten'], allergens:['poisson'],
+    ingredients:['200g filet de saumon','150g brocoli','1 carotte','jus de citron','aneth','sel'],
+    steps:['Cuire le saumon à la vapeur 12 min.','Faire cuire les légumes à la vapeur 8 min.','Presser le citron sur le saumon.','Parsemer d\'aneth frais.'] },
+  { id:4, name:'Smoothie protéiné mangue', cat:'Collation', time:5, kcal:220, p:25, g:28, l:3,
+    img:'🥤', tags:['végétarien','rapide'], allergens:['lait'],
+    ingredients:['30g protéine whey vanille','150g mangue surgelée','200ml lait demi-écrémé','1 c.à.c graines de chia'],
+    steps:['Mixer tous les ingrédients 30 secondes.','Servir immédiatement.'] },
+  { id:5, name:'Salade quinoa-avocat', cat:'Déjeuner', time:15, kcal:480, p:16, g:52, l:22,
+    img:'🥗', tags:['végétarien','sans gluten'], allergens:[],
+    ingredients:['150g quinoa cuit','1 avocat','100g tomates cerises','1/2 concombre','jus de citron','huile d\'olive','sel'],
+    steps:['Cuire le quinoa selon les instructions.','Couper l\'avocat, les tomates et le concombre.','Mélanger avec le quinoa refroidi.','Assaisonner avec citron et huile d\'olive.'] },
+  { id:6, name:'Omelette champignons-épinards', cat:'Dîner', time:12, kcal:310, p:24, g:8, l:20,
+    img:'🍳', tags:['végétarien','rapide'], allergens:['oeuf'],
+    ingredients:['3 oeufs','100g champignons','50g épinards frais','1 c.à.s huile olive','sel, poivre','herbes fraîches'],
+    steps:['Faire sauter les champignons 4 min.','Ajouter les épinards jusqu\'à ce qu\'ils tombent.','Battre les oeufs et verser dans la poêle.','Plier et servir.'] },
+  { id:7, name:'Pancakes protéinés', cat:'Petit déjeuner', time:15, kcal:340, p:28, g:38, l:8,
+    img:'🥞', tags:['haute protéine'], allergens:['oeuf','lait'],
+    ingredients:['2 oeufs','20g protéine whey','50g flocons avoine','100ml lait','1 c.à.c levure','baies pour garnir'],
+    steps:['Mixer tous les ingrédients jusqu\'à homogénéité.','Cuire les pancakes 2 min par face à feu moyen.','Garnir de baies et un filet de miel.'] },
+  { id:8, name:'Soupe lentilles corail', cat:'Dîner', time:30, kcal:360, p:20, g:52, l:6,
+    img:'🍲', tags:['végétarien','sans gluten'], allergens:[],
+    ingredients:['200g lentilles corail','1 oignon','2 carottes','1 c.à.c cumin','1 c.à.c curcuma','1L bouillon légumes'],
+    steps:['Faire revenir l\'oignon 3 min.','Ajouter carottes, lentilles et épices.','Verser le bouillon, cuire 20 min.','Mixer partiellement et servir.'] },
+  { id:9, name:'Wrap thon-légumes', cat:'Déjeuner', time:10, kcal:430, p:36, g:42, l:14,
+    img:'🌯', tags:['rapide','haute protéine'], allergens:['gluten','poisson'],
+    ingredients:['1 tortilla de blé','120g thon en boîte','1/4 avocado','laitue','tomates','yaourt grec','moutarde'],
+    steps:['Égoutter le thon.','Mélanger avec yaourt et moutarde.','Garnir la tortilla et rouler.','Couper en deux et servir.'] },
+  { id:10, name:'Bol açaï récupération', cat:'Collation', time:8, kcal:290, p:12, g:44, l:8,
+    img:'🫐', tags:['antioxydant','végétarien'], allergens:[],
+    ingredients:['100g purée açaï','1 banane','50g granola','fruits rouges','1 c.à.s beurre d\'amande'],
+    steps:['Mixer l\'açaï avec la banane.','Verser dans un bol.','Garnir de granola et fruits.','Ajouter une quenelle de beurre d\'amande.'] },
+];
+
+const MENUS_WEEK = {
+  '2026-06-29': { type:'charge',
+    trainSlots:{ matin:null, midi:null, apm:'Entraînement intensité haute (90 min)', soir:null },
+    repas:{ pdj:1, collMatin:4, dejeuner:2, collApm:10, diner:3 } },
+  '2026-06-30': { type:'charge',
+    trainSlots:{ matin:null, midi:null, apm:'Entraînement technique (75 min)', soir:null },
+    repas:{ pdj:7, collMatin:4, dejeuner:9, collApm:10, diner:6 } },
+  '2026-07-01': { type:'recup',
+    trainSlots:{ matin:'Natation légère (45 min)', midi:null, apm:null, soir:null },
+    repas:{ pdj:1, collMatin:null, dejeuner:5, collApm:null, diner:8 } },
+  '2026-07-02': { type:'normal',
+    trainSlots:{ matin:null, midi:null, apm:'Entraînement tactique (60 min)', soir:null },
+    repas:{ pdj:7, collMatin:4, dejeuner:2, collApm:10, diner:3 } },
+  '2026-07-03': { type:'charge',
+    trainSlots:{ matin:'Cardio (30 min)', midi:null, apm:'Renforcement musculaire (90 min)', soir:null },
+    repas:{ pdj:1, collMatin:4, dejeuner:9, collApm:10, diner:6 } },
+  '2026-07-04': { type:'match',
+    trainSlots:{ matin:'⚔️ MATCH — Compétition régionale', midi:null, apm:null, soir:null },
+    repas:{ pdj:7, collMatin:4, dejeuner:2, collApm:4, diner:3 } },
+  '2026-07-05': { type:'recup',
+    trainSlots:{ matin:null, midi:null, apm:null, soir:null },
+    repas:{ pdj:1, collMatin:null, dejeuner:5, collApm:null, diner:8 } },
+};
+
+const SHOPPING = [
+  { cat:'🥩 Protéines', items:[
+    { name:'Blanc de poulet', qty:'600g', done:false },
+    { name:'Saumon (filets)', qty:'400g', done:false },
+    { name:'Thon en boîte', qty:'3 boîtes (120g)', done:true },
+    { name:'Oeufs', qty:'12', done:false },
+    { name:'Protéine whey vanille', qty:'1 dose (500g)', done:true },
+  ]},
+  { cat:'🥦 Légumes & salades', items:[
+    { name:'Brocoli', qty:'500g', done:false },
+    { name:'Courgettes', qty:'3', done:false },
+    { name:'Champignons', qty:'200g', done:false },
+    { name:'Épinards frais', qty:'150g', done:false },
+    { name:'Tomates cerises', qty:'250g', done:true },
+    { name:'Carottes', qty:'500g', done:false },
+    { name:'Salade verte', qty:'1 sachet', done:false },
+  ]},
+  { cat:'🌾 Féculents & céréales', items:[
+    { name:'Riz basmati', qty:'1 kg', done:false },
+    { name:'Quinoa', qty:'500g', done:false },
+    { name:'Flocons d\'avoine', qty:'500g', done:false },
+    { name:'Lentilles corail', qty:'400g', done:false },
+    { name:'Tortillas de blé', qty:'6', done:false },
+  ]},
+  { cat:'🧀 Produits laitiers & alternatives', items:[
+    { name:'Lait végétal (amande)', qty:'1L', done:false },
+    { name:'Yaourt grec', qty:'4 pots', done:false },
+    { name:'Lait demi-écrémé', qty:'500ml', done:true },
+  ]},
+  { cat:'🍌 Fruits', items:[
+    { name:'Bananes', qty:'6', done:false },
+    { name:'Mangue surgelée', qty:'300g', done:false },
+    { name:'Fruits rouges mélangés', qty:'300g', done:false },
+    { name:'Avocat', qty:'3', done:false },
+    { name:'Citrons', qty:'4', done:false },
+  ]},
+  { cat:'🫙 Épicerie', items:[
+    { name:'Huile d\'olive', qty:'50cl', done:true },
+    { name:'Amandes effilées', qty:'100g', done:false },
+    { name:'Graines de chia', qty:'150g', done:false },
+    { name:'Miel', qty:'1 pot', done:true },
+    { name:'Beurre d\'amande', qty:'1 pot', done:false },
+    { name:'Granola nature', qty:'300g', done:false },
+  ]},
+];
+
+const USERS = [
+  { id:1, role:'joueur', name:'Karim Ben Slimane', email:'karim', password:'1234',
+    sport:'Judo', club:'Judo Club Paris 15', category:'-73 kg', coachId:3,
+    allergies:[], preferences:['sans gluten'],
+    startDate:'2026-05-01',
+    weight_start:74.5, weight_target:66.0, height:178,
+    weightHistory:[
+      {date:'01/05',w:74.5},{date:'08/05',w:73.8},{date:'15/05',w:73.1},
+      {date:'22/05',w:72.4},{date:'29/05',w:71.9},{date:'05/06',w:71.4},
+      {date:'12/06',w:71.0},{date:'19/06',w:70.6},{date:'29/06',w:70.2},
+    ],
+    todayWeight:70.2, todayForm:7, todayHydration:1.8, hydrationGoal:2.5,
+  },
+  { id:2, role:'joueur', name:'Emma Laurent', email:'emma', password:'1234',
+    sport:'Judo', club:'INSEP', category:'-52 kg', coachId:3,
+    allergies:[], preferences:['végétarien'],
+    startDate:'2026-05-01',
+    weight_start:58.0, weight_target:52.0, height:165,
+    weightHistory:[
+      {date:'01/05',w:58.0},{date:'08/05',w:57.4},{date:'15/05',w:56.8},
+      {date:'22/05',w:56.2},{date:'29/05',w:55.8},{date:'05/06',w:55.5},
+      {date:'12/06',w:55.1},{date:'19/06',w:54.9},{date:'29/06',w:54.6},
+    ],
+    todayWeight:54.6, todayForm:9, todayHydration:2.2, hydrationGoal:2.0,
+  },
+  { id:5, role:'joueur', name:'Ivan Ouedraogo', email:'ivan', password:'1234',
+    sport:'Basket-ball', club:'ALM Évreux', category:'Pro B', coachId:7,
+    allergies:[], preferences:[],
+    startDate:'2026-06-01',
+    weight_start:113.0, weight_target:100.0, height:206,
+    weightHistory:[
+      {date:'01/06',w:113.0},{date:'08/06',w:112.4},{date:'15/06',w:111.8},
+      {date:'22/06',w:111.2},{date:'29/06',w:110.7},
+    ],
+    todayWeight:110.7, todayForm:8, todayHydration:2.5, hydrationGoal:3.5,
+  },
+  { id:3, role:'coach', name:'Sophie Marchand', email:'coach', password:'1234', club:'FFJudo', sport:'Judo' },
+  { id:7, role:'coach', name:'Dinis Ferreira', email:'dinis', password:'1234', club:'ALM Évreux', sport:'Basket-ball', title:'Coach principal' },
+  { id:6, role:'expert', name:'Théo', email:'theo', password:'1234', club:'Arcana' },
+  { id:4, role:'admin', name:'Admin Arcana', email:'admin', password:'admin' },
+];
+
+const CHATS = {
+  '1-3': [
+    { from:3, name:'Sophie', text:'Karim, super semaine ! Poids en bonne progression.', time:'Lun 10:15' },
+    { from:1, name:'Karim', text:'Merci Sophie ! Je me sens bien, l\'énergie est là.', time:'Lun 10:22' },
+    { from:3, name:'Sophie', text:'Pense à bien hydrater samedi. Vise 2,5L dans la journée.', time:'Lun 10:24' },
+    { from:1, name:'Karim', text:'Noté ! Est-ce que je peux prendre une collation supplémentaire le soir ?', time:'Lun 18:45' },
+    { from:3, name:'Sophie', text:'Oui, 20g de fromage blanc avec des noix suffira.', time:'Lun 19:02' },
+  ],
+  '1-6': [
+    { from:6, name:'Théo', text:'Bonjour Karim ! J\'ai regardé tes données de la semaine. Très bonne régularité.', time:'Mar 09:00' },
+    { from:1, name:'Karim', text:'Merci Théo ! J\'ai du mal avec le petit déjeuner certains matins.', time:'Mar 09:15' },
+    { from:6, name:'Théo', text:'Normal avant une grosse journée. On peut adapter avec une option plus légère.', time:'Mar 09:18' },
+  ],
+  '2-3': [
+    { from:3, name:'Sophie', text:'Emma, ta forme est excellente cette semaine !', time:'Lun 11:00' },
+    { from:2, name:'Emma', text:'Oui je me sens au top ! La récup de dimanche m\'a vraiment aidée.', time:'Lun 11:10' },
+    { from:3, name:'Sophie', text:'Continue comme ça. On est bien dans les temps pour l\'objectif.', time:'Lun 11:12' },
+  ],
+  '5-7': [
+    { from:7, name:'Dinis', text:'Ivan, comment tu te sens après l\'entraînement d\'hier ?', time:'Mar 08:30' },
+    { from:5, name:'Ivan', text:'Bien, les jambes sont un peu lourdes mais ça va.', time:'Mar 08:45' },
+    { from:7, name:'Dinis', text:'On va adapter la collation post-entraînement avec Théo.', time:'Mar 08:50' },
+  ],
+  '5-6': [
+    { from:6, name:'Théo', text:'Ivan, j\'ai étudié ton profil. On va travailler la prise de masse musculaire sèche.', time:'Lun 14:00' },
+    { from:5, name:'Ivan', text:'Super ! Je veux aussi améliorer ma récupération.', time:'Lun 14:20' },
+    { from:6, name:'Théo', text:'On intègre plus d\'oméga-3 et on optimise les fenêtres anaboliques.', time:'Lun 14:25' },
+  ],
+  'group-1': [
+    { from:3, name:'Sophie', text:'Rappel pour tous : on ajuste les menus de match samedi.', time:'Lun 09:00' },
+    { from:6, name:'Théo', text:'J\'ai mis à jour le plan. Collation pré-match renforcée en glucides.', time:'Lun 09:05' },
+    { from:1, name:'Karim', text:'Parfait, merci à vous deux !', time:'Lun 09:10' },
+  ],
+  'group-5': [
+    { from:7, name:'Dinis', text:'Ivan, match jeudi soir. On adapte le menu de mercredi.', time:'Mar 10:00' },
+    { from:6, name:'Théo', text:'Je mets à jour les menus. Charge glucidique mercredi midi.', time:'Mar 10:08' },
+    { from:5, name:'Ivan', text:'Compris. Je validerai le menu ce soir.', time:'Mar 10:15' },
+  ],
+};
+
+const ENCOURAGEMENTS = [
+  { quote:'Chaque repas est une opportunité de performer.', author:'Sophie, ta coach' },
+  { quote:'Le corps suit l\'esprit. Nourris les deux.', author:'Sagesse Arcana' },
+  { quote:'−4.3 kg en 8 semaines. Tu bâtis quelque chose de solide.', author:'Tes statistiques' },
+  { quote:'La discipline nutritionnelle, c\'est 40% de ta performance sur le tatami.', author:'Sophie, ta coach' },
+];
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+
+const TODAY = '2026-06-29';
+const WEEK_DAYS = ['Lun 29/06','Mar 30/06','Mer 01/07','Jeu 02/07','Ven 03/07','Sam 04/07','Dim 05/07'];
+const WEEK_KEYS = ['2026-06-29','2026-06-30','2026-07-01','2026-07-02','2026-07-03','2026-07-04','2026-07-05'];
+
+const SPORT_ICONS = { 'Judo':'🥋','Basket-ball':'🏀','Football':'⚽','Rugby':'🏉','Natation':'🏊','Tennis':'🎾','Athlétisme':'🏃','Cyclisme':'🚴','Boxe':'🥊','Volleyball':'🏐','Handball':'🤾','Gym':'🤸' };
+function getSportIcon(sport) { return SPORT_ICONS[sport] || '🏃'; }
+function daysSince(startDate) {
+  if (!startDate) return null;
+  const [y,m,d] = startDate.split('-').map(Number);
+  const start = new Date(y,m-1,d);
+  const now = new Date('2026-06-29');
+  return Math.max(0, Math.floor((now - start) / 86400000));
+}
+
+const TR = {
+  fr: { dashboard:'Dashboard', calendar:'Calendrier', shopping:'Courses', recipes:'Recettes', tracking:'Suivi', chat:'Chat', profile:'Profil',
+        players:'Mes joueurs', menus:'Gestion menus', hello:'Bonjour', weight:'Poids', goal:'Objectif', progress:'Progression',
+        dayMatch:'⚔️ Jour de match', dayLoad:'🔥 Jour de charge', dayRecup:'💚 Jour de récup', dayNormal:'📋 Jour normal',
+        training:'Entraînement', nextShop:'Prochaines courses', inDays:'dans', days:'jours',
+        morningTrain:'🌅 Matin', noonTrain:'☀️ Midi', apmTrain:'🌇 Après-midi', eveningTrain:'🌙 Soir',
+        logout:'Déconnecter', save:'Enregistrer', saved:'Enregistré !', add:'Ajouter', cancel:'Annuler',
+        groupChat:'Groupe', lang:'EN' },
+  en: { dashboard:'Dashboard', calendar:'Calendar', shopping:'Groceries', recipes:'Recipes', tracking:'Tracking', chat:'Chat', profile:'Profile',
+        players:'My athletes', menus:'Menu management', hello:'Hello', weight:'Weight', goal:'Target', progress:'Progress',
+        dayMatch:'⚔️ Match day', dayLoad:'🔥 High load', dayRecup:'💚 Recovery', dayNormal:'📋 Normal day',
+        training:'Training', nextShop:'Next grocery run', inDays:'in', days:'days',
+        morningTrain:'🌅 Morning', noonTrain:'☀️ Noon', apmTrain:'🌇 Afternoon', eveningTrain:'🌙 Evening',
+        logout:'Log out', save:'Save', saved:'Saved!', add:'Add', cancel:'Cancel',
+        groupChat:'Group', lang:'FR' },
+};
+function t(key, lang) { return TR[lang||'fr'][key] || key; }
+
+function getRecipe(id) { return RECIPES.find(r => r.id === id); }
+function pct(start, current, target) {
+  const total = Math.abs(target - start);
+  const done = Math.abs(current - start);
+  return Math.min(100, Math.round((done / total) * 100));
+}
+function dayTypeLabel(type, lang) {
+  const l = lang || 'fr';
+  return { match:t('dayMatch',l), charge:t('dayLoad',l), recup:t('dayRecup',l), normal:t('dayNormal',l) }[type] || t('dayNormal',l);
+}
+function dayTypeColor(type) {
+  return { match:'bg-red-500/20 text-red-400 border border-red-500/30',
+            charge:'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+            recup:'bg-green-500/20 text-green-400 border border-green-500/30',
+            normal:'bg-gray-500/20 text-gray-400 border border-gray-500/30' }[type];
+}
+function downloadCSV(shopping) {
+  let csv = 'Catégorie,Aliment,Quantité,Acheté\n';
+  shopping.forEach(cat => {
+    cat.items.forEach(item => {
+      csv += `"${cat.cat}","${item.name}","${item.qty}","${item.done ? 'Oui' : 'Non'}"\n`;
+    });
+  });
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'arcana-courses.csv'; a.click();
+}
+
+// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
+
+function Logo({ size='md' }) {
+  const isLg = size === 'lg';
+  const isSm = size === 'sm';
+  return (
+    <div className="flex flex-col leading-none" style={{lineHeight:1}}>
+      <span style={{
+        fontSize: isLg ? '0.75rem' : isSm ? '0.55rem' : '0.6rem',
+        letterSpacing:'0.25em', fontWeight:700,
+        color:'rgba(255,255,255,0.75)', textTransform:'uppercase'
+      }}>ARCANA</span>
+      <span style={{
+        fontSize: isLg ? '1.8rem' : isSm ? '1.1rem' : '1.4rem',
+        fontWeight:900, color:'#0DC9AA', letterSpacing:'-0.02em',
+        lineHeight:1.05
+      }}>performance</span>
+    </div>
+  );
+}
+
+function WeightChart({ history, target }) {
+  if (!history || history.length < 2) return null;
+  const W = 420, H = 140, PAD = { t:10, r:10, b:30, l:36 };
+  const vals = history.map(h => h.w);
+  const minV = Math.min(...vals, target) - 0.5;
+  const maxV = Math.max(...vals) + 0.5;
+  const xScale = i => PAD.l + (i / (history.length - 1)) * (W - PAD.l - PAD.r);
+  const yScale = v => PAD.t + ((maxV - v) / (maxV - minV)) * (H - PAD.t - PAD.b);
+  const pts = history.map((h,i) => `${xScale(i)},${yScale(h.w)}`).join(' ');
+  const targetY = yScale(target);
+  const last = history[history.length - 1];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{height:140}}>
+      <defs>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0DC9AA" stopOpacity="0.4"/>
+          <stop offset="100%" stopColor="#0DC9AA" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {/* Grid lines */}
+      {[0,1,2,3].map(i => {
+        const y = PAD.t + i * (H - PAD.t - PAD.b) / 3;
+        const v = (maxV - (i / 3) * (maxV - minV)).toFixed(1);
+        return <g key={i}>
+          <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+          <text x={PAD.l - 4} y={y + 4} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.35)">{v}</text>
+        </g>;
+      })}
+      {/* Target line */}
+      <line x1={PAD.l} y1={targetY} x2={W - PAD.r} y2={targetY} stroke="#10B981" strokeWidth="1" strokeDasharray="4,3"/>
+      <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill="#10B981">Obj</text>
+      {/* Area fill */}
+      <polygon
+        points={`${xScale(0)},${H - PAD.b} ${pts} ${xScale(history.length-1)},${H - PAD.b}`}
+        fill="url(#lineGrad)"
+      />
+      {/* Line */}
+      <polyline points={pts} fill="none" stroke="#2DD4BF" strokeWidth="2" strokeLinejoin="round"/>
+      {/* Dots */}
+      {history.map((h,i) => (
+        <circle key={i} cx={xScale(i)} cy={yScale(h.w)} r="3" fill="#0DC9AA" stroke="#0D0D1A" strokeWidth="1.5"/>
+      ))}
+      {/* Last value label */}
+      <text x={xScale(history.length-1)} y={yScale(last.w) - 7} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#A78BFA">{last.w}</text>
+      {/* X labels (every 2) */}
+      {history.filter((_,i) => i % 2 === 0).map((h,i) => (
+        <text key={i} x={xScale(i*2)} y={H - PAD.b + 12} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.3)">{h.date}</text>
+      ))}
+    </svg>
+  );
+}
+
+function RecipeModal({ recipe, onClose }) {
+  if (!recipe) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="bg-acard rounded-2xl w-full max-w-md mx-4 p-6 fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <div className="text-4xl mb-1">{recipe.img}</div>
+            <h2 className="text-xl font-bold">{recipe.name}</h2>
+            <span className="text-xs text-apurpl bg-apurple/20 px-2 py-0.5 rounded-full">{recipe.cat}</span>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl">✕</button>
+        </div>
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {[['⚡','Kcal',recipe.kcal],['💪','Prot.',recipe.p+'g'],['🌾','Glucides',recipe.g+'g'],['🫙','Lipides',recipe.l+'g']].map(([icon,label,val]) => (
+            <div key={label} className="bg-acard2 rounded-xl p-2 text-center">
+              <div className="text-lg">{icon}</div>
+              <div className="text-xs text-gray-400">{label}</div>
+              <div className="font-bold text-sm">{val}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mb-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Ingrédients</p>
+          <ul className="space-y-1">
+            {recipe.ingredients.map((ing,i) => (
+              <li key={i} className="text-sm flex items-center gap-2"><span className="text-agreen">•</span>{ing}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Préparation</p>
+          <ol className="space-y-2">
+            {recipe.steps.map((step,i) => (
+              <li key={i} className="text-sm flex gap-2"><span className="text-apurpl font-bold shrink-0">{i+1}.</span>{step}</li>
+            ))}
+          </ol>
+        </div>
+        <div className="flex flex-wrap gap-1 mt-4">
+          {recipe.tags.map(t => <span key={t} className="text-xs bg-acard2 text-gray-400 px-2 py-0.5 rounded-full">{t}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+
+function Login({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+  const accounts = [
+    { label:'Karim (Judo)', email:'karim', pass:'1234' },
+    { label:'Emma (Judo)', email:'emma', pass:'1234' },
+    { label:'Ivan (Basket)', email:'ivan', pass:'1234' },
+    { label:'Sophie (Coach)', email:'coach', pass:'1234' },
+    { label:'Dinis (Coach)', email:'dinis', pass:'1234' },
+    { label:'Théo (Expert)', email:'theo', pass:'1234' },
+    { label:'Admin', email:'admin', pass:'admin' },
+  ];
+  function doLogin(e) {
+    e.preventDefault();
+    const user = USERS.find(u => u.email === email && u.password === pass);
+    if (user) onLogin(user);
+    else setErr('Identifiants incorrects');
+  }
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{background:'radial-gradient(ellipse at 50% 0%, rgba(13,201,170,0.12) 0%, #0D0D1A 70%)'}}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-10">
+          <Logo size="lg"/>
+          <p className="text-gray-400 mt-2 text-sm tracking-wide">Nutrition · Performance · Judo</p>
+        </div>
+        <form onSubmit={doLogin} className="bg-acard rounded-2xl p-6 space-y-4">
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Identifiant</label>
+            <input value={email} onChange={e => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm outline-none focus:border-apurple"
+              placeholder="Votre identifiant"/>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Mot de passe</label>
+            <input type="password" value={pass} onChange={e => setPass(e.target.value)}
+              className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm outline-none focus:border-apurple"
+              placeholder="••••••••"/>
+          </div>
+          {err && <p className="text-red-400 text-xs text-center">{err}</p>}
+          <button type="submit" className="w-full py-3 rounded-xl font-semibold text-white text-sm"
+            style={{background:'linear-gradient(135deg,#0DC9AA,#0A9E87)'}}>
+            Se connecter
+          </button>
+        </form>
+        <div className="mt-6">
+          <p className="text-xs text-gray-500 text-center mb-3">Connexion rapide (démo)</p>
+          <div className="grid grid-cols-2 gap-2">
+            {accounts.map(acc => (
+              <button key={acc.email} onClick={() => { setEmail(acc.email); setPass(acc.pass); }}
+                className="text-xs py-2 px-3 rounded-xl border border-white/10 text-gray-400 hover:border-apurple/50 hover:text-apurpl transition-colors text-left">
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PLAYER NAV ───────────────────────────────────────────────────────────────
+
+function getPlayerTabs(lang) { return [
+  { id:'dashboard', icon:'🏠', label:t('dashboard',lang) },
+  { id:'calendrier', icon:'📅', label:t('calendar',lang) },
+  { id:'courses', icon:'🛒', label:t('shopping',lang) },
+  { id:'recettes', icon:'📖', label:t('recipes',lang) },
+  { id:'suivi', icon:'📊', label:t('tracking',lang) },
+  { id:'chat', icon:'💬', label:t('chat',lang) },
+  { id:'profil', icon:'👤', label:t('profile',lang) },
+];}
+
+function PlayerNav({ user, tab, setTab, onLogout, lang, setLang }) {
+  const tabs = getPlayerTabs(lang);
+  return (
+    <>
+      {/* Top bar */}
+      <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14"
+        style={{background:'rgba(13,13,26,0.95)',backdropFilter:'blur(10px)',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+        <Logo size="sm"/>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setLang(lang==='fr'?'en':'fr')}
+            className="text-xs px-2 py-1 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-apurple/50 font-mono">
+            {t('lang',lang)}
+          </button>
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-semibold">{user.name.split(' ')[0]}</p>
+            <p className="text-xs text-gray-400">{user.club}</p>
+          </div>
+          <button onClick={onLogout} className="text-xs text-gray-500 hover:text-white px-2 py-1 rounded-lg hover:bg-white/5">⏏</button>
+        </div>
+      </div>
+      {/* Bottom nav (mobile) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden flex"
+        style={{background:'rgba(13,13,26,0.97)',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+        {tabs.map(tb => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
+            className={`flex-1 flex flex-col items-center py-2 text-xs transition-colors ${tab===tb.id ? 'text-apurpl' : 'text-gray-500'}`}>
+            <span className="text-lg leading-none">{tb.icon}</span>
+            <span style={{fontSize:9}}>{tb.label}</span>
+          </button>
+        ))}
+      </div>
+      {/* Side nav (desktop) */}
+      <div className="hidden sm:flex fixed left-0 top-14 bottom-0 w-52 flex-col py-4 gap-1 px-3 z-30"
+        style={{background:'rgba(26,26,46,0.5)',borderRight:'1px solid rgba(255,255,255,0.06)'}}>
+        {tabs.map(tb => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${tab===tb.id ? 'nav-active font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+            <span>{tb.icon}</span><span>{tb.label}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ─── PLAYER DASHBOARD ─────────────────────────────────────────────────────────
+
+function PlayerDashboard({ user, setTab, lang }) {
+  const [modalRecipe, setModalRecipe] = useState(null);
+  const today = MENUS_WEEK[TODAY];
+  const enc = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+  const progress = pct(user.weight_start, user.todayWeight || user.weightHistory.slice(-1)[0].w, user.weight_target);
+  const nextShop = 3;
+  const sportIcon = getSportIcon(user.sport);
+
+  const mealSlots = [
+    { key:'pdj', label:'Petit déjeuner', icon:'☀️', time:'07h00' },
+    { key:'collMatin', label:'Collation matin', icon:'🍎', time:'10h00' },
+    { key:'dejeuner', label:'Déjeuner', icon:'🍽️', time:'12h30' },
+    { key:'collApm', label:'Collation après-midi', icon:'🥤', time:'16h00' },
+    { key:'diner', label:'Dîner', icon:'🌙', time:'19h30' },
+  ];
+
+  return (
+    <div className="space-y-4 fade-in">
+      {/* Welcome + day type */}
+      <div className="rounded-2xl p-4" style={{background:'linear-gradient(135deg,rgba(13,201,170,0.15),rgba(16,185,129,0.08))'}}>
+        <p className="text-gray-400 text-sm">{t('hello',lang)},</p>
+        <h1 className="text-2xl font-bold">{user.name.split(' ')[0]} 👋</h1>
+        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm mt-2 ${dayTypeColor(today.type)}`}>
+          {dayTypeLabel(today.type, lang)}
+        </div>
+        {today.type === 'match' && <p className="text-xs text-red-400 mt-1">{today.trainSlots?.matin || ''}</p>}
+      </div>
+
+      {/* Metrics row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-acard rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-apurpl">{user.todayWeight || user.weightHistory.slice(-1)[0].w}</p>
+          <p className="text-xs text-gray-400">{t('weight',lang)} (kg)</p>
+        </div>
+        <div className="bg-acard rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-agreen">{user.weight_target}</p>
+          <p className="text-xs text-gray-400">{t('goal',lang)} (kg)</p>
+        </div>
+        <div className="bg-acard rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-agold">{progress}%</p>
+          <p className="text-xs text-gray-400">Progression</p>
+        </div>
+      </div>
+
+      {/* Weight chart mini */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Évolution du poids</p>
+        <WeightChart history={user.weightHistory} target={user.weight_target}/>
+      </div>
+
+      {/* Encouragement */}
+      <div className="bg-acard rounded-2xl p-4 border border-apurple/20">
+        <p className="text-xs text-apurpl uppercase tracking-wider mb-2">💜 Encouragement du jour</p>
+        <p className="text-sm italic text-gray-200">"{enc.quote}"</p>
+        <p className="text-xs text-gray-500 mt-1">— {enc.author}</p>
+      </div>
+
+      {/* Menu du jour */}
+      <div className="bg-acard rounded-2xl p-4">
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wider">Menu du jour</p>
+          <button onClick={() => setTab('calendrier')} className="text-xs text-apurpl">Voir semaine →</button>
+        </div>
+        <div className="space-y-2">
+          {mealSlots.map(slot => {
+            const rid = today.repas[slot.key];
+            const recipe = rid ? getRecipe(rid) : null;
+            if (!recipe) return null;
+            return (
+              <button key={slot.key} onClick={() => setModalRecipe(recipe)}
+                className="w-full flex items-center gap-3 p-3 bg-acard2 rounded-xl hover:bg-apurple/10 transition-colors text-left card-hover">
+                <span className="text-xl">{recipe.img}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500">{slot.icon} {slot.label} · {slot.time}</p>
+                  <p className="text-sm font-medium truncate">{recipe.name}</p>
+                </div>
+                <span className="text-xs text-gray-500 shrink-0">{recipe.kcal} kcal →</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Shopping & training */}
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => setTab('courses')}
+          className="bg-acard rounded-2xl p-4 text-left card-hover hover:border-agold/30 border border-transparent">
+          <p className="text-2xl mb-1">🛒</p>
+          <p className="font-semibold text-sm">{t('nextShop',lang)}</p>
+          <p className="text-agold text-xs mt-1">{t('inDays',lang)} {nextShop} {t('days',lang)}</p>
+        </button>
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-2xl mb-1">{sportIcon}</p>
+          <p className="font-semibold text-sm">{t('training',lang)}</p>
+          {Object.entries(today.trainSlots||{}).filter(([,v])=>v).map(([slot,val]) => (
+            <p key={slot} className="text-agreen text-xs mt-0.5 leading-tight">{val}</p>
+          ))}
+          {!Object.values(today.trainSlots||{}).some(Boolean) && <p className="text-gray-500 text-xs mt-1">Repos</p>}
+        </div>
+      </div>
+
+      {modalRecipe && <RecipeModal recipe={modalRecipe} onClose={() => setModalRecipe(null)}/>}
+    </div>
+  );
+}
+
+// ─── PLAYER CALENDAR ──────────────────────────────────────────────────────────
+
+function PlayerCalendar({ lang }) {
+  const [modalRecipe, setModalRecipe] = useState(null);
+
+  const mealSlots = [
+    { key:'pdj', label:'Petit déj.', icon:'☀️' },
+    { key:'collMatin', label:'Coll. matin', icon:'🍎' },
+    { key:'dejeuner', label:'Déjeuner', icon:'🍽️' },
+    { key:'collApm', label:'Coll. PM', icon:'🥤' },
+    { key:'diner', label:'Dîner', icon:'🌙' },
+  ];
+  const trainRows = [
+    { key:'matin', label:t('morningTrain',lang) },
+    { key:'midi', label:t('noonTrain',lang) },
+    { key:'apm', label:t('apmTrain',lang) },
+    { key:'soir', label:t('eveningTrain',lang) },
+  ];
+
+  // Shared table styles
+  const thStyle = { padding:'4px 3px', fontSize:10, fontWeight:600, textAlign:'center', borderRadius:6, whiteSpace:'nowrap' };
+  const tdLabelStyle = { padding:'2px 4px 2px 0', fontSize:10, color:'rgba(255,255,255,0.4)', whiteSpace:'nowrap', width:72, minWidth:72, maxWidth:72 };
+  const tdStyle = { padding:2, fontSize:9 };
+
+  function CalCell({ children, bg='#1A1A2E', color='rgba(255,255,255,0.7)' }) {
+    return (
+      <td style={{...tdStyle}}>
+        <div style={{background:bg,borderRadius:6,padding:'3px 4px',color,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',minHeight:26}}>
+          {children}
+        </div>
+      </td>
+    );
+  }
+
+  return (
+    <div className="fade-in">
+      <h2 className="text-lg font-bold mb-4">{t('calendar',lang)} — Semaine 27</h2>
+      <div style={{overflowX:'auto',marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16}}>
+        <table style={{tableLayout:'fixed',width:'100%',minWidth:580,borderCollapse:'separate',borderSpacing:'0 2px'}}>
+          <colgroup>
+            <col style={{width:72}}/>
+            {WEEK_KEYS.map((_,i) => <col key={i}/>)}
+          </colgroup>
+          {/* Header */}
+          <thead>
+            <tr>
+              <th style={{...thStyle,width:72}}/>
+              {WEEK_DAYS.map((d,i) => (
+                <th key={i} style={{...thStyle, background: WEEK_KEYS[i]===TODAY ? '#0DC9AA' : '#1A1A2E', color: WEEK_KEYS[i]===TODAY ? '#fff' : 'rgba(255,255,255,0.5)', borderRadius:6, padding:'5px 2px'}}>
+                  {d.split(' ')[0]}<br/><span style={{fontWeight:400}}>{d.split(' ')[1]}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Day type row */}
+            <tr>
+              <td style={tdLabelStyle}>Type</td>
+              {WEEK_KEYS.map((dk,i) => {
+                const d = MENUS_WEEK[dk];
+                const colors = { match:['rgba(239,68,68,0.2)','#F87171'], charge:['rgba(249,115,22,0.2)','#FB923C'], recup:['rgba(16,185,129,0.15)','#34D399'], normal:['rgba(100,116,139,0.15)','rgba(255,255,255,0.4)'] };
+                const [bg,col] = colors[d?.type||'normal'];
+                return (
+                  <CalCell key={i} bg={bg} color={col}>
+                    {d?.type==='match'?'⚔️ Match':d?.type==='charge'?'🔥 Charge':d?.type==='recup'?'💚 Récup':'📋'}
+                  </CalCell>
+                );
+              })}
+            </tr>
+            {/* Separator row */}
+            <tr><td colSpan={8} style={{padding:'2px 0'}}><div style={{height:1,background:'rgba(255,255,255,0.06)'}}/></td></tr>
+            {/* Meal rows */}
+            {mealSlots.map(slot => (
+              <tr key={slot.key}>
+                <td style={tdLabelStyle}>{slot.icon} {slot.label}</td>
+                {WEEK_KEYS.map((dk,i) => {
+                  const rid = MENUS_WEEK[dk]?.repas?.[slot.key];
+                  const recipe = rid ? getRecipe(rid) : null;
+                  return recipe ? (
+                    <td key={i} style={tdStyle}>
+                      <button onClick={() => setModalRecipe(recipe)}
+                        style={{display:'block',width:'100%',background:'#1A1A2E',borderRadius:6,padding:'3px 4px',textAlign:'left',cursor:'pointer',border:'none',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontSize:9,color:'rgba(255,255,255,0.75)',minHeight:26}}>
+                        {recipe.img} {recipe.name}
+                      </button>
+                    </td>
+                  ) : (
+                    <CalCell key={i} bg='rgba(26,26,46,0.4)' color='rgba(255,255,255,0.2)'>—</CalCell>
+                  );
+                })}
+              </tr>
+            ))}
+            {/* Separator */}
+            <tr><td colSpan={8} style={{padding:'3px 0'}}><div style={{height:1,background:'rgba(255,255,255,0.08)'}}/></td></tr>
+            {/* Training rows */}
+            {trainRows.map(tr => (
+              <tr key={tr.key}>
+                <td style={tdLabelStyle}>{tr.label}</td>
+                {WEEK_KEYS.map((dk,i) => {
+                  const val = MENUS_WEEK[dk]?.trainSlots?.[tr.key];
+                  const day = MENUS_WEEK[dk];
+                  const [bg,col] = day?.type==='match' && val ? ['rgba(239,68,68,0.15)','#F87171'] :
+                                   day?.type==='recup' ? ['rgba(16,185,129,0.08)','rgba(16,185,129,0.4)'] :
+                                   val ? ['rgba(59,130,246,0.12)','#60A5FA'] :
+                                   ['rgba(26,26,46,0.3)','rgba(255,255,255,0.15)'];
+                  return <CalCell key={i} bg={bg} color={col}>{val || '—'}</CalCell>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {modalRecipe && <RecipeModal recipe={modalRecipe} onClose={() => setModalRecipe(null)}/>}
+    </div>
+  );
+}
+
+// ─── PLAYER SHOPPING ──────────────────────────────────────────────────────────
+
+function PlayerShopping() {
+  const [shop, setShop] = useState(SHOPPING);
+  const [search, setSearch] = useState('');
+  function toggle(catIdx, itemIdx) {
+    const next = shop.map((cat,ci) => ci!==catIdx ? cat : {
+      ...cat, items: cat.items.map((item,ii) => ii!==itemIdx ? item : {...item,done:!item.done})
+    });
+    setShop(next);
+  }
+  const total = shop.flatMap(c => c.items).length;
+  const done = shop.flatMap(c => c.items).filter(i => i.done).length;
+  const filtered = shop.map(cat => ({
+    ...cat,
+    items: cat.items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
+  })).filter(cat => cat.items.length > 0);
+  return (
+    <div className="fade-in">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-lg font-bold">Liste de courses</h2>
+          <p className="text-xs text-gray-400">{done}/{total} articles cochés</p>
+        </div>
+        <button onClick={() => downloadCSV(shop)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-agreen/40 text-agreen hover:bg-agreen/10 transition-colors">
+          📥 Exporter CSV
+        </button>
+      </div>
+      {/* Progress */}
+      <div className="bg-acard rounded-xl p-3 mb-4">
+        <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <span>Progression</span><span>{Math.round((done/total)*100)}%</span>
+        </div>
+        <div className="h-2 bg-acard2 rounded-full overflow-hidden">
+          <div className="h-full bg-agreen rounded-full transition-all" style={{width:`${(done/total)*100}%`}}/>
+        </div>
+      </div>
+      {/* Search */}
+      <input value={search} onChange={e => setSearch(e.target.value)}
+        className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-apurple mb-4"
+        placeholder="🔍 Rechercher un aliment..."/>
+      {/* Items */}
+      <div className="space-y-4">
+        {filtered.map((cat, ci) => (
+          <div key={ci} className="bg-acard rounded-2xl overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-white/5">
+              <p className="font-semibold text-sm">{cat.cat}</p>
+            </div>
+            <div className="divide-y divide-white/5">
+              {cat.items.map((item, ii) => {
+                const globalCatIdx = shop.findIndex(c => c.cat === cat.cat);
+                return (
+                  <button key={ii} onClick={() => toggle(globalCatIdx, shop[globalCatIdx].items.findIndex(i => i.name === item.name))}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/3 transition-colors text-left">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border transition-all ${item.done ? 'bg-agreen border-agreen' : 'border-gray-600'}`}>
+                      {item.done && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    <span className={`flex-1 text-sm ${item.done ? 'line-through text-gray-500' : ''}`}>{item.name}</span>
+                    <span className="text-xs text-gray-500 shrink-0">{item.qty}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-gray-600 text-center mt-4">📁 L'export CSV peut être importé dans Google Sheets</p>
+    </div>
+  );
+}
+
+// ─── PLAYER RECIPES ───────────────────────────────────────────────────────────
+
+function PlayerRecipes() {
+  const [modalRecipe, setModalRecipe] = useState(null);
+  const [filter, setFilter] = useState('Tous');
+  const [search, setSearch] = useState('');
+  const cats = ['Tous','Petit déjeuner','Déjeuner','Dîner','Collation'];
+  const visible = RECIPES.filter(r =>
+    (filter === 'Tous' || r.cat === filter) &&
+    r.name.toLowerCase().includes(search.toLowerCase())
+  );
+  return (
+    <div className="fade-in">
+      <h2 className="text-lg font-bold mb-4">Fiches recettes</h2>
+      <input value={search} onChange={e => setSearch(e.target.value)}
+        className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-apurple mb-3"
+        placeholder="🔍 Rechercher une recette..."/>
+      {/* Category filter */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+        {cats.map(c => (
+          <button key={c} onClick={() => setFilter(c)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filter===c ? 'bg-apurple text-white' : 'bg-acard text-gray-400 hover:text-white'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+      {/* Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {visible.map(recipe => (
+          <button key={recipe.id} onClick={() => setModalRecipe(recipe)}
+            className="bg-acard rounded-2xl p-4 text-left card-hover hover:border-apurple/30 border border-transparent transition-all">
+            <div className="text-3xl mb-2">{recipe.img}</div>
+            <p className="font-semibold text-sm leading-tight mb-1">{recipe.name}</p>
+            <p className="text-xs text-gray-500 mb-2">{recipe.cat} · {recipe.time} min</p>
+            <div className="flex justify-between text-xs">
+              <span className="text-agold">{recipe.kcal} kcal</span>
+              <span className="text-agreen">{recipe.p}g prot.</span>
+            </div>
+          </button>
+        ))}
+      </div>
+      {modalRecipe && <RecipeModal recipe={modalRecipe} onClose={() => setModalRecipe(null)}/>}
+    </div>
+  );
+}
+
+// ─── PLAYER TRACKING ──────────────────────────────────────────────────────────
+
+function PlayerTracking({ user, lang }) {
+  const [newWeight, setNewWeight] = useState('');
+  const [form, setForm] = useState(user.todayForm || 7);
+  const [hydration, setHydration] = useState(user.todayHydration || 1.5);
+  const [history, setHistory] = useState(user.weightHistory);
+  const [saved, setSaved] = useState(false);
+  const lastW = history[history.length - 1].w;
+  const progress = pct(user.weight_start, lastW, user.weight_target);
+  const diff = (lastW - user.weight_start).toFixed(1);
+  const days = daysSince(user.startDate);
+  const hydGoal = user.hydrationGoal || 2.5;
+  const hydPct = Math.min(100, Math.round((hydration / hydGoal) * 100));
+
+  function saveEntry() {
+    if (!newWeight) return;
+    const next = [...history, { date:'29/06', w:parseFloat(newWeight) }];
+    setHistory(next);
+    setNewWeight('');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+  const formEmoji = form >= 9 ? '🚀' : form >= 7 ? '💪' : form >= 5 ? '😐' : '😴';
+  const hydEmoji = hydPct >= 100 ? '💧✅' : hydPct >= 60 ? '💧' : '🫙';
+
+  return (
+    <div className="fade-in space-y-4">
+      <div className="flex justify-between items-baseline">
+        <h2 className="text-lg font-bold">{t('tracking',lang)}</h2>
+        {days !== null && <span className="text-xs text-agold">Depuis {days} jours</span>}
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label:'Poids départ', val:`${user.weight_start} kg`, color:'text-gray-300', sub: user.startDate ? new Date(user.startDate).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '' },
+          { label:'Poids actuel', val:`${lastW} kg`, color:'text-apurpl', sub:'aujourd\'hui' },
+          { label:'Objectif', val:`${user.weight_target} kg`, color:'text-agreen', sub:`encore ${Math.abs((lastW-user.weight_target).toFixed(1))} kg` },
+          { label:'Évolution totale', val:`${diff > 0 ? '+' : ''}${diff} kg`, color: diff < 0 ? 'text-agreen' : 'text-ared', sub: days ? `en ${days} jours` : '' },
+        ].map(s => (
+          <div key={s.label} className="bg-acard rounded-2xl p-4">
+            <p className="text-xs text-gray-400 mb-0.5">{s.label}</p>
+            <p className={`text-2xl font-black ${s.color}`}>{s.val}</p>
+            {s.sub && <p className="text-xs text-gray-500 mt-0.5">{s.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      {/* Progress */}
+      <div className="bg-acard rounded-2xl p-4">
+        <div className="flex justify-between text-sm mb-2">
+          <span className="text-gray-400">Progression vers l'objectif</span>
+          <span className="font-bold text-agreen">{progress}%</span>
+        </div>
+        <div className="h-3 bg-acard2 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{width:`${progress}%`,background:'linear-gradient(90deg,#0DC9AA,#10B981)'}}/>
+        </div>
+        {days && <p className="text-xs text-gray-500 mt-1.5">{progress}% atteint en {days} jours · rythme : {(Math.abs(diff)/days*7).toFixed(2)} kg/sem.</p>}
+      </div>
+
+      {/* Chart */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Courbe de poids</p>
+        <WeightChart history={history} target={user.weight_target}/>
+      </div>
+
+      {/* Hydration */}
+      <div className="bg-acard rounded-2xl p-4">
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-sm font-semibold">{hydEmoji} Hydratation du jour</p>
+          <span className={`text-sm font-bold ${hydPct>=100?'text-agreen':hydPct>=60?'text-agold':'text-ared'}`}>{hydration.toFixed(1)} / {hydGoal} L</span>
+        </div>
+        <div className="h-3 bg-acard2 rounded-full overflow-hidden mb-3">
+          <div className="h-full rounded-full transition-all" style={{width:`${hydPct}%`,background: hydPct>=100?'#10B981':hydPct>=60?'#F59E0B':'#EF4444'}}/>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="range" min="0" max={hydGoal*2} step="0.1" value={hydration}
+            onChange={e=>setHydration(parseFloat(e.target.value))}
+            className="flex-1" style={{accentColor:'#0DC9AA'}}/>
+          <div className="flex gap-1">
+            {[0.25,0.5,1].map(v => (
+              <button key={v} onClick={()=>setHydration(h=>Math.min(hydGoal*2,parseFloat((h+v).toFixed(2))))}
+                className="px-2 py-1 bg-acard2 text-xs rounded-lg hover:bg-apurple/20 text-gray-300">+{v}L</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Daily entry */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-sm font-semibold mb-3">Saisie du jour</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Poids aujourd'hui (kg)</label>
+            <input value={newWeight} onChange={e => setNewWeight(e.target.value)} type="number" step="0.1"
+              className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-apurple"
+              placeholder={`Ex. ${lastW}`}/>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-2 block">Forme du jour {formEmoji} — {form}/10</label>
+            <input type="range" min="1" max="10" value={form} onChange={e => setForm(+e.target.value)}
+              className="w-full" style={{accentColor:'#0DC9AA'}}/>
+            <div className="flex justify-between text-xs text-gray-600 mt-1"><span>Épuisé</span><span>Au top</span></div>
+          </div>
+          <button onClick={saveEntry}
+            className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${saved ? 'bg-agreen text-white' : 'bg-apurple hover:bg-apurple/80 text-white'}`}>
+            {saved ? '✓ Enregistré !' : t('save',lang)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SHARED CHAT COMPONENT ────────────────────────────────────────────────────
+
+function ChatView({ userId, convList, lang }) {
+  const [activeId, setActiveId] = useState(convList[0]?.id || '');
+  const [allMsgs, setAllMsgs] = useState(CHATS);
+  const [msg, setMsg] = useState('');
+  const bottomRef = useRef();
+
+  const msgs = allMsgs[activeId] || [];
+  function send() {
+    if (!msg.trim()) return;
+    const now = new Date(); const hm = `${now.getHours()}h${String(now.getMinutes()).padStart(2,'0')}`;
+    setAllMsgs(prev => ({...prev, [activeId]: [...(prev[activeId]||[]), { from:userId, name:'Moi', text:msg, time:hm }]}));
+    setMsg(''); setTimeout(() => bottomRef.current?.scrollIntoView({behavior:'smooth'}), 50);
+  }
+
+  return (
+    <div className="fade-in flex flex-col" style={{minHeight:500}}>
+      {/* Conv list */}
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
+        {convList.map(conv => (
+          <button key={conv.id} onClick={() => setActiveId(conv.id)}
+            className={`shrink-0 flex items-center gap-2 p-2.5 rounded-xl border transition-all ${activeId===conv.id ? 'border-apurple bg-apurple/10' : 'border-white/10 bg-acard'}`}>
+            <div className="relative">
+              <div className="w-8 h-8 rounded-full bg-apurple/20 flex items-center justify-center text-sm font-bold shrink-0">
+                {conv.isGroup ? '👥' : conv.name[0]}
+              </div>
+              {conv.online && <div className="pulse-dot absolute -bottom-0.5 -right-0.5"/>}
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-semibold whitespace-nowrap">{conv.name}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">{conv.sub}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+      {/* Messages */}
+      <div className="flex-1 bg-acard rounded-2xl overflow-y-auto p-4 space-y-3 mb-3" style={{height:320}}>
+        {msgs.length === 0 && <p className="text-gray-600 text-sm text-center mt-8">Démarrer la conversation...</p>}
+        {msgs.map((m,i) => {
+          const isMe = m.from === userId;
+          return (
+            <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'} gap-2`}>
+              {!isMe && <div className="w-6 h-6 rounded-full bg-apurple/20 flex items-center justify-center text-xs shrink-0 mt-1">{m.name?.[0]||'?'}</div>}
+              <div className={`max-w-xs ${isMe ? '' : ''}`}>
+                {!isMe && <p className="text-xs text-apurpl mb-0.5">{m.name}</p>}
+                <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-apurple text-white rounded-br-sm' : 'bg-acard2 text-gray-200 rounded-bl-sm'}`}>
+                  <p>{m.text}</p>
+                  <p className={`text-xs mt-0.5 ${isMe ? 'text-teal-100' : 'text-gray-500'}`}>{m.time}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef}/>
+      </div>
+      <div className="flex gap-2">
+        <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key==='Enter' && send()}
+          className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-apurple"
+          placeholder="Écrire un message..."/>
+        <button onClick={send} className="px-4 py-2.5 rounded-xl bg-apurple text-white font-semibold text-sm hover:bg-apurple/80">➤</button>
+      </div>
+    </div>
+  );
+}
+
+function PlayerChat({ user, lang }) {
+  const coachId = user.coachId;
+  const coach = USERS.find(u => u.id === coachId);
+  const theo = USERS.find(u => u.id === 6);
+  const groupKey = `group-${user.id}`;
+  const convList = [
+    coach && { id:`${user.id}-${coachId}`, name:coach.name, sub:coach.title||'Coach', online:true },
+    theo  && { id:`${user.id}-6`, name:'Théo', sub:'Arcana', online:true },
+    { id:groupKey, name:t('groupChat',lang), sub:`${coach?.name?.split(' ')[0]||'Coach'} + Théo`, isGroup:true, online:false },
+  ].filter(Boolean);
+
+  return (
+    <div className="fade-in">
+      <h2 className="text-lg font-bold mb-3">{t('chat',lang)}</h2>
+      <ChatView userId={user.id} convList={convList} lang={lang}/>
+    </div>
+  );
+}
+
+// ─── PLAYER PROFILE ───────────────────────────────────────────────────────────
+
+function PlayerProfile({ user, onLogout }) {
+  const [allergies, setAllergies] = useState(user.allergies || []);
+  const [prefs, setPrefs] = useState(user.preferences || []);
+  const [newAllergy, setNewAllergy] = useState('');
+  function addAllergy() { if(newAllergy.trim()) { setAllergies([...allergies, newAllergy.trim()]); setNewAllergy(''); } }
+  return (
+    <div className="fade-in space-y-4">
+      <h2 className="text-lg font-bold">Mon profil</h2>
+      {/* Identity */}
+      <div className="bg-acard rounded-2xl p-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" style={{background:'linear-gradient(135deg,#0DC9AA,#10B981)'}}>
+          {getSportIcon(user.sport)}
+        </div>
+        <div>
+          <h3 className="font-bold text-lg">{user.name}</h3>
+          <p className="text-sm text-gray-400">{user.club}</p>
+          <p className="text-xs text-apurpl">{user.category} · {user.sport}</p>
+          {user.startDate && <p className="text-xs text-gray-500 mt-0.5">Suivi démarré depuis <span className="text-agold font-semibold">{daysSince(user.startDate)} jours</span></p>}
+        </div>
+      </div>
+      {/* Stats */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Informations physiques</p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            ['Taille', `${user.height} cm`],
+            ['Poids départ', `${user.weight_start} kg`],
+            ['Objectif', `${user.weight_target} kg`],
+          ].map(([k,v]) => (
+            <div key={k} className="bg-acard2 rounded-xl p-3 text-center">
+              <p className="text-xs text-gray-400">{k}</p>
+              <p className="font-bold text-sm mt-1">{v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Allergies */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Allergies & intolérances</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {allergies.length === 0 && <p className="text-sm text-gray-500">Aucune allergie renseignée</p>}
+          {allergies.map((a,i) => (
+            <span key={i} className="flex items-center gap-1 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs">
+              {a}
+              <button onClick={() => setAllergies(allergies.filter((_,j) => j!==i))} className="ml-1 hover:text-red-200">✕</button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input value={newAllergy} onChange={e => setNewAllergy(e.target.value)} onKeyDown={e => e.key==='Enter' && addAllergy()}
+            className="flex-1 rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple"
+            placeholder="Ajouter une allergie..."/>
+          <button onClick={addAllergy} className="px-3 py-2 bg-ared/20 text-red-400 rounded-xl text-sm">+</button>
+        </div>
+      </div>
+      {/* Preferences */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Préférences alimentaires</p>
+        <div className="grid grid-cols-2 gap-2">
+          {['végétarien','vegan','sans gluten','sans porc','sans lactose','halal'].map(p => (
+            <button key={p} onClick={() => setPrefs(prefs.includes(p) ? prefs.filter(x=>x!==p) : [...prefs,p])}
+              className={`py-2 px-3 rounded-xl text-xs font-medium transition-all border ${prefs.includes(p) ? 'bg-agreen/20 border-agreen/40 text-agreen' : 'border-white/10 text-gray-400 hover:border-gray-500'}`}>
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Photos */}
+      <div className="bg-acard rounded-2xl p-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Photos de progression</p>
+        <div className="grid grid-cols-3 gap-2">
+          {['Semaine 1','Semaine 4','Ajouter'].map((label,i) => (
+            <div key={i} className="aspect-square rounded-xl bg-acard2 flex flex-col items-center justify-center text-center border border-dashed border-white/10 hover:border-apurple/50 cursor-pointer">
+              <span className="text-2xl">{i<2 ? '🖼️' : '+'}</span>
+              <span className="text-xs text-gray-500 mt-1">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button onClick={onLogout} className="w-full py-3 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-gray-500 text-sm transition-colors">
+        Se déconnecter
+      </button>
+    </div>
+  );
+}
+
+// ─── PLAYER APP ───────────────────────────────────────────────────────────────
+
+function PlayerApp({ user, onLogout }) {
+  const [tab, setTab] = useState('dashboard');
+  const [lang, setLang] = useState('fr');
+  const pw = { padding:'1rem', paddingTop:'4.5rem', paddingBottom:'5rem' };
+  return (
+    <div>
+      <PlayerNav user={user} tab={tab} setTab={setTab} onLogout={onLogout} lang={lang} setLang={setLang}/>
+      <main className="max-w-2xl mx-auto" style={pw}>
+        {tab==='dashboard'  && <PlayerDashboard user={user} setTab={setTab} lang={lang}/>}
+        {tab==='calendrier' && <PlayerCalendar lang={lang}/>}
+        {tab==='courses'    && <PlayerShopping lang={lang}/>}
+        {tab==='recettes'   && <PlayerRecipes lang={lang}/>}
+        {tab==='suivi'      && <PlayerTracking user={user} lang={lang}/>}
+        {tab==='chat'       && <PlayerChat user={user} lang={lang}/>}
+        {tab==='profil'     && <PlayerProfile user={user} onLogout={onLogout} lang={lang}/>}
+      </main>
+    </div>
+  );
+}
+
+// ─── COACH APP ────────────────────────────────────────────────────────────────
+
+function CoachApp({ user, onLogout }) {
+  const [tab, setTab] = useState('dashboard');
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const players = USERS.filter(u => u.role === 'joueur');
+
+  function CoachNav() {
+    const navTabs = [
+      { id:'dashboard', icon:'📊', label:'Tableau de bord' },
+      { id:'joueurs', icon:'🥋', label:'Mes joueurs' },
+      { id:'chat', icon:'💬', label:'Messages' },
+    ];
+    return (
+      <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14"
+        style={{background:'rgba(13,13,26,0.95)',backdropFilter:'blur(10px)',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+        <Logo size="sm"/>
+        <div className="flex gap-4">
+          {navTabs.map(t => (
+            <button key={t.id} onClick={() => {setTab(t.id);setSelectedPlayer(null);}}
+              className={`text-sm flex items-center gap-1.5 pb-0.5 transition-colors ${tab===t.id&&!selectedPlayer ? 'tab-active' : 'text-gray-400 hover:text-white'}`}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={onLogout} className="text-xs text-gray-500 hover:text-white">⏏ Déco</button>
+      </div>
+    );
+  }
+
+  function CoachDashboard() {
+    return (
+      <div className="fade-in space-y-4">
+        <div className="flex justify-between items-center">
+          <div><h2 className="text-xl font-bold">Tableau de bord</h2>
+          <p className="text-sm text-gray-400">Semaine du 29 juin</p></div>
+          <span className="text-xs bg-agreen/20 text-agreen px-3 py-1 rounded-full">{players.length} joueurs actifs</span>
+        </div>
+        {/* Player cards */}
+        {players.map(p => {
+          const lastW = p.weightHistory.slice(-1)[0].w;
+          const prog = pct(p.weight_start, lastW, p.weight_target);
+          const diff = (lastW - p.weight_start).toFixed(1);
+          const form = p.todayForm || 7;
+          const formColor = form >= 8 ? 'text-agreen' : form >= 6 ? 'text-agold' : 'text-ared';
+          return (
+            <div key={p.id} className="bg-acard rounded-2xl p-4 card-hover border border-transparent hover:border-apurple/20 transition-all">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{getSportIcon(p.sport)}</span>
+                    <div>
+                      <h3 className="font-bold">{p.name}</h3>
+                      <p className="text-xs text-gray-400">{p.club} · {p.category}</p>
+                    </div>
+                  </div>
+                  {p.startDate && <p className="text-xs text-gray-500 mt-0.5 ml-7">Depuis <span className="text-agold">{daysSince(p.startDate)} jours</span></p>}
+                </div>
+                <button onClick={() => { setSelectedPlayer(p); setTab('detail'); }}
+                  className="text-xs text-apurpl hover:text-white px-3 py-1 rounded-lg bg-apurple/10 hover:bg-apurple/20 transition-colors">
+                  Détail →
+                </button>
+              </div>
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                <div className="bg-acard2 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-apurpl">{lastW}</p><p className="text-xs text-gray-500">kg actuel</p>
+                </div>
+                <div className="bg-acard2 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-agreen">{p.weight_target}</p><p className="text-xs text-gray-500">objectif</p>
+                </div>
+                <div className="bg-acard2 rounded-xl p-2 text-center">
+                  <p className={`text-base font-black ${diff < 0 ? 'text-agreen' : 'text-ared'}`}>{diff > 0 ? '+' : ''}{diff}</p><p className="text-xs text-gray-500">évolution</p>
+                </div>
+                <div className="bg-acard2 rounded-xl p-2 text-center">
+                  <p className={`text-base font-black ${formColor}`}>{form}/10</p><p className="text-xs text-gray-500">forme</p>
+                </div>
+                <div className="bg-acard2 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-ablue">{p.todayHydration||0}L</p><p className="text-xs text-gray-500">hydrat.</p>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Progression poids</span><span className="text-agreen font-semibold">{prog}%</span>
+                </div>
+                <div className="h-2 bg-acard2 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{width:`${prog}%`,background:'linear-gradient(90deg,#0DC9AA,#10B981)'}}/>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {/* Team form gauge */}
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Forme équipe — aujourd'hui</p>
+          <div className="space-y-2">
+            {players.map(p => {
+              const form = p.todayForm || 5;
+              const formColor = form >= 8 ? '#10B981' : form >= 6 ? '#F59E0B' : '#EF4444';
+              const formLabel = form >= 8 ? '🚀 Excellent' : form >= 6 ? '💪 Bon' : form >= 4 ? '😐 Moyen' : '😴 Fatigué';
+              return (
+                <div key={p.id}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-300">{p.name.split(' ')[0]}</span>
+                    <span style={{color:formColor}}>{formLabel} ({form}/10)</span>
+                  </div>
+                  <div className="h-3 bg-acard2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{width:`${form*10}%`, background:formColor}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-white/5 flex justify-between text-xs text-gray-500">
+            <span>Moyenne équipe</span>
+            <span className="font-bold text-apurpl">{(players.reduce((s,p)=>s+(p.todayForm||5),0)/players.length).toFixed(1)}/10</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function CoachPlayerDetail({ player }) {
+    return (
+      <div className="fade-in space-y-4">
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={() => { setSelectedPlayer(null); setTab('dashboard'); }}
+            className="text-apurpl text-sm">← Retour</button>
+          <div>
+            <h2 className="text-lg font-bold">{player.name}</h2>
+            <p className="text-xs text-gray-400">{player.club} · {player.category}</p>
+          </div>
+        </div>
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Courbe de poids</p>
+          <WeightChart history={player.weightHistory} target={player.weight_target}/>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label:'Poids départ', val:`${player.weight_start} kg`, color:'text-gray-300' },
+            { label:'Poids actuel', val:`${player.weightHistory.slice(-1)[0].w} kg`, color:'text-apurpl' },
+            { label:'Objectif', val:`${player.weight_target} kg`, color:'text-agreen' },
+            { label:'Progression', val:`${pct(player.weight_start,player.weightHistory.slice(-1)[0].w,player.weight_target)}%`, color:'text-agold' },
+          ].map(s => (
+            <div key={s.label} className="bg-acard rounded-2xl p-4">
+              <p className="text-xs text-gray-400">{s.label}</p>
+              <p className={`text-xl font-black ${s.color}`}>{s.val}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Profil alimentaire</p>
+          <p className="text-sm">Allergies : <span className="text-red-400">{player.allergies?.join(', ') || 'Aucune'}</span></p>
+          <p className="text-sm mt-1">Préférences : <span className="text-agreen">{player.preferences?.join(', ') || 'Aucune'}</span></p>
+          {player.startDate && <p className="text-xs text-gray-500 mt-2">Suivi démarré depuis <span className="text-agold font-semibold">{daysSince(player.startDate)} jours</span></p>}
+        </div>
+        {/* Today's menu */}
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Menu d'aujourd'hui</p>
+          {Object.entries(MENUS_WEEK[TODAY].repas).map(([slot, rid]) => {
+            const recipe = rid ? getRecipe(rid) : null;
+            if (!recipe) return null;
+            return (
+              <div key={slot} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0">
+                <span className="text-lg">{recipe.img}</span>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 capitalize">{slot === 'pdj' ? 'Petit déj.' : slot === 'collMatin' ? 'Collation matin' : slot === 'dejeuner' ? 'Déjeuner' : slot === 'collApm' ? 'Collation PM' : 'Dîner'}</p>
+                  <p className="text-sm">{recipe.name}</p>
+                </div>
+                <span className="text-xs text-agold">{recipe.kcal} kcal</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <CoachNav/>
+      <main className="max-w-2xl mx-auto px-4" style={{paddingTop:'5rem'}}>
+        {tab==='dashboard' && !selectedPlayer && <CoachDashboard/>}
+        {tab==='detail' && selectedPlayer && <CoachPlayerDetail player={selectedPlayer}/>}
+        {tab==='joueurs' && (
+          <div className="fade-in space-y-3">
+            <h2 className="text-lg font-bold mb-4">Mes joueurs</h2>
+            {players.map(p => (
+              <button key={p.id} onClick={() => { setSelectedPlayer(p); setTab('detail'); }}
+                className="w-full bg-acard rounded-2xl p-4 flex items-center gap-4 text-left card-hover hover:border-apurple/20 border border-transparent transition-all">
+                <div className="w-12 h-12 rounded-xl bg-apurple/20 flex items-center justify-center text-xl">{getSportIcon(p.sport)}</div>
+                <div className="flex-1">
+                  <p className="font-semibold">{p.name}</p>
+                  <p className="text-xs text-gray-400">{p.club} · {p.category}</p>
+                  <p className="text-xs text-apurpl mt-0.5">Objectif : {p.weight_target} kg · Actuel : {p.weightHistory.slice(-1)[0].w} kg</p>
+                </div>
+                <span className="text-gray-500">→</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {tab==='chat' && (() => {
+          const myPlayers = players.filter(p => p.coachId === user.id);
+          const theo = USERS.find(u => u.id === 6);
+          const convList = [
+            ...myPlayers.map(p => ({ id:`${p.id}-${user.id}`, name:p.name, sub:`${getSportIcon(p.sport)} ${p.club}`, online:p.todayForm>=7 })),
+            theo && { id:`coach-theo`, name:'Théo', sub:'Arcana', online:true },
+            myPlayers.length > 0 && { id:`group-${myPlayers[0].id}`, name:'Groupe joueur', sub:`${myPlayers[0]?.name?.split(' ')[0]||''} + Théo`, isGroup:true },
+          ].filter(Boolean);
+          return <div className="fade-in"><h2 className="text-lg font-bold mb-3">Messages</h2><ChatView userId={user.id} convList={convList} lang="fr"/></div>;
+        })()}
+      </main>
+    </div>
+  );
+}
+
+// ─── ADMIN APP ────────────────────────────────────────────────────────────────
+
+function AdminApp({ user, onLogout }) {
+  const [tab, setTab] = useState('dashboard');
+  const [recipes, setRecipes] = useState(RECIPES);
+  const [adminSelectedPlayer, setAdminSelectedPlayer] = useState(null);
+  const allPlayers = USERS.filter(u => u.role === 'joueur');
+
+  const MEAL_LABELS = ['Petit déjeuner','Collation matin','Déjeuner','Collation PM','Dîner'];
+  const MEAL_KEYS = ['pdj','collMatin','dejeuner','collApm','diner'];
+
+  function AdminNav() {
+    const navItems = [
+      {id:'dashboard',label:'Dashboard'},
+      {id:'suivi',label:'Suivi joueurs'},
+      {id:'menus',label:'Menus'},
+      {id:'recettes',label:'Recettes'},
+      {id:'joueurs',label:'Joueurs'},
+    ];
+    return (
+      <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14"
+        style={{background:'rgba(13,13,26,0.95)',backdropFilter:'blur(10px)',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+        <Logo size="sm"/>
+        <div className="flex gap-3 overflow-x-auto">
+          {navItems.map(n => (
+            <button key={n.id} onClick={() => { setTab(n.id); setAdminSelectedPlayer(null); }}
+              className={`text-sm pb-0.5 shrink-0 transition-colors ${tab===n.id&&!adminSelectedPlayer ? 'tab-active' : 'text-gray-400 hover:text-white'}`}>
+              {n.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={onLogout} className="text-xs text-gray-500 hover:text-white shrink-0 ml-2">⏏</button>
+      </div>
+    );
+  }
+
+  function AdminDashboard() {
+    return (
+      <div className="fade-in space-y-4">
+        <div className="flex justify-between items-center">
+          <div><h2 className="text-xl font-bold">Tableau de bord admin</h2>
+          <p className="text-sm text-gray-400">Semaine du 29 juin — {allPlayers.length} athlètes</p></div>
+        </div>
+        {allPlayers.map(p => {
+          const lastW = p.weightHistory.slice(-1)[0]?.w || p.weight_start;
+          const prog = pct(p.weight_start, lastW, p.weight_target);
+          const diff = (lastW - p.weight_start).toFixed(1);
+          const form = p.todayForm || 5;
+          const formColor = form >= 8 ? 'text-agreen' : form >= 6 ? 'text-agold' : 'text-ared';
+          const days = daysSince(p.startDate);
+          const hydPct = Math.min(100, Math.round(((p.todayHydration||0)/(p.hydrationGoal||2.5))*100));
+          return (
+            <div key={p.id} className="bg-acard rounded-2xl p-4 border border-transparent hover:border-apurple/20 transition-all">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{getSportIcon(p.sport)}</span>
+                  <div>
+                    <h3 className="font-bold">{p.name}</h3>
+                    <p className="text-xs text-gray-400">{p.club} · {p.category}</p>
+                    {days !== null && <p className="text-xs text-gray-500">Depuis <span className="text-agold">{days} jours</span></p>}
+                  </div>
+                </div>
+                <button onClick={() => { setAdminSelectedPlayer(p); setTab('suivi-detail'); }}
+                  className="text-xs text-apurpl px-3 py-1 rounded-lg bg-apurple/10 hover:bg-apurple/20">Détail →</button>
+              </div>
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                {[
+                  {v:lastW,l:'kg actuel',c:'text-apurpl'},
+                  {v:p.weight_target,l:'objectif',c:'text-agreen'},
+                  {v:(diff>0?'+':'')+diff,l:'évolution',c:diff<0?'text-agreen':'text-ared'},
+                  {v:`${form}/10`,l:'forme',c:formColor},
+                  {v:`${p.todayHydration||0}L`,l:'hydrat.',c:'text-ablue'},
+                ].map(s => (
+                  <div key={s.l} className="bg-acard2 rounded-xl p-2 text-center">
+                    <p className={`text-sm font-black ${s.c}`}>{s.v}</p>
+                    <p className="text-xs text-gray-500">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-1.5">
+                <div>
+                  <div className="flex justify-between text-xs text-gray-400 mb-0.5"><span>Poids</span><span className="text-agreen">{prog}%</span></div>
+                  <div className="h-2 bg-acard2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{width:`${prog}%`,background:'linear-gradient(90deg,#0DC9AA,#10B981)'}}/>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-gray-400 mb-0.5"><span>Hydratation</span><span className="text-ablue">{hydPct}%</span></div>
+                  <div className="h-2 bg-acard2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{width:`${hydPct}%`,background: hydPct>=100?'#10B981':hydPct>=60?'#3B82F6':'#EF4444'}}/>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Forme équipe</p>
+          <div className="space-y-2">
+            {allPlayers.map(p => {
+              const form = p.todayForm || 5;
+              const formColor = form >= 8 ? '#10B981' : form >= 6 ? '#F59E0B' : '#EF4444';
+              return (
+                <div key={p.id}>
+                  <div className="flex justify-between text-xs mb-0.5">
+                    <span className="text-gray-300">{getSportIcon(p.sport)} {p.name.split(' ')[0]}</span>
+                    <span style={{color:formColor}}>{form}/10</span>
+                  </div>
+                  <div className="h-2.5 bg-acard2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{width:`${form*10}%`,background:formColor}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function AdminPlayerDetail({ player }) {
+    return (
+      <div className="fade-in space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={() => { setAdminSelectedPlayer(null); setTab('suivi'); }} className="text-apurpl text-sm">← Retour</button>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{getSportIcon(player.sport)}</span>
+            <div>
+              <h2 className="text-lg font-bold">{player.name}</h2>
+              <p className="text-xs text-gray-400">{player.club} · {player.category}</p>
+            </div>
+          </div>
+        </div>
+        {player.startDate && <div className="bg-agold/10 border border-agold/20 rounded-xl px-4 py-2 text-sm text-agold">Suivi démarré depuis <strong>{daysSince(player.startDate)} jours</strong></div>}
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Courbe de poids</p>
+          <WeightChart history={player.weightHistory} target={player.weight_target}/>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            {label:'Poids départ', val:`${player.weight_start} kg`, color:'text-gray-300'},
+            {label:'Poids actuel', val:`${player.weightHistory.slice(-1)[0]?.w||player.weight_start} kg`, color:'text-apurpl'},
+            {label:'Objectif', val:`${player.weight_target} kg`, color:'text-agreen'},
+            {label:'Progression', val:`${pct(player.weight_start,player.weightHistory.slice(-1)[0]?.w||player.weight_start,player.weight_target)}%`, color:'text-agold'},
+          ].map(s => (
+            <div key={s.label} className="bg-acard rounded-2xl p-4">
+              <p className="text-xs text-gray-400">{s.label}</p>
+              <p className={`text-xl font-black ${s.color}`}>{s.val}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Hydratation</p>
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-300">Aujourd'hui</span>
+            <span className="font-bold text-ablue">{player.todayHydration||0} / {player.hydrationGoal||2.5} L</span>
+          </div>
+          <div className="h-3 bg-acard2 rounded-full overflow-hidden">
+            <div className="h-full rounded-full" style={{width:`${Math.min(100,(player.todayHydration||0)/(player.hydrationGoal||2.5)*100)}%`,background:'#3B82F6'}}/>
+          </div>
+        </div>
+        <div className="bg-acard rounded-2xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Profil</p>
+          <p className="text-sm">Allergies : <span className="text-red-400">{player.allergies?.join(', ')||'Aucune'}</span></p>
+          <p className="text-sm mt-1">Préférences : <span className="text-agreen">{player.preferences?.join(', ')||'Aucune'}</span></p>
+        </div>
+      </div>
+    );
+  }
+
+  function AdminSuivi() {
+    return (
+      <div className="fade-in space-y-3">
+        <h2 className="text-lg font-bold mb-2">Suivi individuel</h2>
+        {allPlayers.map(p => {
+          const lastW = p.weightHistory.slice(-1)[0]?.w || p.weight_start;
+          const prog = pct(p.weight_start, lastW, p.weight_target);
+          const days = daysSince(p.startDate);
+          return (
+            <button key={p.id} onClick={() => { setAdminSelectedPlayer(p); setTab('suivi-detail'); }}
+              className="w-full bg-acard rounded-2xl p-4 flex items-center gap-4 text-left hover:border-apurple/20 border border-transparent transition-all">
+              <div className="w-12 h-12 rounded-xl bg-apurple/20 flex items-center justify-center text-2xl shrink-0">{getSportIcon(p.sport)}</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold">{p.name}</p>
+                <p className="text-xs text-gray-400">{p.club} · {p.category}</p>
+                {days !== null && <p className="text-xs text-gray-500">Depuis <span className="text-agold">{days} jours</span></p>}
+                <div className="mt-1.5 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-acard2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{width:`${prog}%`,background:'linear-gradient(90deg,#0DC9AA,#10B981)'}}/>
+                  </div>
+                  <span className="text-xs text-agreen shrink-0">{prog}%</span>
+                </div>
+              </div>
+              <span className="text-gray-500 shrink-0">→</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function AdminMenus() {
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [localMenus, setLocalMenus] = useState(MENUS_WEEK);
+    const adminPlayers = USERS.filter(u => u.role === 'joueur');
+    const [selectedPlayer, setSelectedPlayer] = useState(adminPlayers[0]?.id || null);
+    const currentPlayer = adminPlayers.find(p => p.id === selectedPlayer);
+    function assign(dayKey, mealKey, rid) {
+      setLocalMenus(prev => ({
+        ...prev,
+        [dayKey]: { ...prev[dayKey], repas: { ...prev[dayKey].repas, [mealKey]: rid } }
+      }));
+      setSelectedSlot(null);
+    }
+    return (
+      <div className="fade-in">
+        <div className="flex justify-between items-center mb-4">
+          <div><h2 className="text-lg font-bold">Gestion des menus</h2>
+          <p className="text-xs text-gray-400">Semaine 27 · 29 juin – 5 juillet 2026</p></div>
+          <button className="px-3 py-2 bg-apurple/20 text-apurpl rounded-xl text-xs hover:bg-apurple/30 transition-colors">+ Période</button>
+        </div>
+        {/* Player selector */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {adminPlayers.map(p => (
+            <button key={p.id} onClick={() => setSelectedPlayer(p.id)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs border transition-all ${selectedPlayer===p.id ? 'bg-apurple border-apurple text-white' : 'border-white/10 text-gray-400 hover:border-apurple/50'}`}>
+              {getSportIcon(p.sport)} {p.name.split(' ')[0]}
+            </button>
+          ))}
+        </div>
+        {currentPlayer && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-acard rounded-xl text-xs text-gray-400">
+            <span>{getSportIcon(currentPlayer.sport)}</span>
+            <span className="font-semibold text-white">{currentPlayer.name}</span>
+            <span>·</span><span>{currentPlayer.club}</span>
+            {currentPlayer.allergies?.length > 0 && <span className="ml-2 text-red-400">⚠️ {currentPlayer.allergies.join(', ')}</span>}
+            {currentPlayer.preferences?.length > 0 && <span className="text-agreen ml-1">{currentPlayer.preferences.join(', ')}</span>}
+          </div>
+        )}
+        <div className="flex justify-between items-center mb-2 hidden">{/* spacer end */}
+        </div>
+        <div style={{overflowX:'auto',marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16}}>
+          <table style={{tableLayout:'fixed',width:'100%',minWidth:620,borderCollapse:'separate',borderSpacing:'0 2px'}}>
+            <colgroup>
+              <col style={{width:100}}/>
+              {WEEK_KEYS.map((_,i) => <col key={i}/>)}
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={{padding:'4px 0'}}/>
+                {WEEK_DAYS.map((d,i) => (
+                  <th key={i} style={{padding:'4px 2px'}}>
+                    <div style={{background: WEEK_KEYS[i]===TODAY ? '#0DC9AA' : '#1A1A2E', borderRadius:6, padding:'5px 4px', textAlign:'center', fontSize:10, fontWeight:600, color: WEEK_KEYS[i]===TODAY ? '#fff' : 'rgba(255,255,255,0.5)'}}>
+                      {d}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Day type row */}
+              <tr>
+                <td style={{fontSize:10,color:'rgba(255,255,255,0.35)',paddingRight:6,whiteSpace:'nowrap'}}>Type</td>
+                {WEEK_KEYS.map((dk,i) => (
+                  <td key={i} style={{padding:'2px'}}>
+                    <select value={localMenus[dk]?.type || 'normal'}
+                      onChange={e => setLocalMenus(prev => ({...prev,[dk]:{...prev[dk],type:e.target.value}}))}
+                      style={{width:'100%',background:'#1A1A2E',border:'1px solid rgba(255,255,255,0.1)',borderRadius:6,padding:'3px 4px',fontSize:10,color:'rgba(255,255,255,0.7)',outline:'none'}}>
+                      <option value="normal">📋 Normal</option>
+                      <option value="charge">🔥 Charge</option>
+                      <option value="recup">💚 Récup</option>
+                      <option value="match">⚔️ Match</option>
+                    </select>
+                  </td>
+                ))}
+              </tr>
+              {/* Separator */}
+              <tr><td colSpan={8} style={{padding:'2px 0'}}><div style={{height:1,background:'rgba(255,255,255,0.07)'}}/></td></tr>
+              {/* Meal rows */}
+              {MEAL_KEYS.map((mKey, mIdx) => (
+                <tr key={mKey}>
+                  <td style={{fontSize:10,color:'rgba(255,255,255,0.4)',paddingRight:6,whiteSpace:'nowrap',fontWeight:500}}>{MEAL_LABELS[mIdx]}</td>
+                  {WEEK_KEYS.map((dk,di) => {
+                    const rid = localMenus[dk]?.repas?.[mKey];
+                    const recipe = rid ? getRecipe(rid) : null;
+                    const slotKey = `${dk}-${mKey}`;
+                    return (
+                      <td key={di} style={{padding:'2px',position:'relative'}}>
+                        <button onClick={() => setSelectedSlot(slotKey===selectedSlot ? null : slotKey)}
+                          style={{display:'block',width:'100%',textAlign:'left',padding:'4px 5px',borderRadius:6,fontSize:9,minHeight:34,background: selectedSlot===slotKey ? 'rgba(13,201,170,0.12)' : '#1A1A2E',border: selectedSlot===slotKey ? '1px solid #0DC9AA' : '1px solid transparent',cursor:'pointer',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'rgba(255,255,255,0.75)'}}>
+                          {recipe ? <>{recipe.img} {recipe.name}</> : <span style={{color:'rgba(255,255,255,0.2)'}}>+ Ajouter</span>}
+                        </button>
+                        {selectedSlot === slotKey && (
+                          <div style={{position:'absolute',top:'100%',left:0,zIndex:20,marginTop:4,background:'#1A1A2E',border:'1px solid rgba(13,201,170,0.3)',borderRadius:12,padding:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',width:200}}>
+                            <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:6}}>Choisir une recette :</p>
+                            <div style={{maxHeight:160,overflowY:'auto'}}>
+                              <button onClick={() => assign(dk, mKey, null)} style={{display:'block',width:'100%',textAlign:'left',fontSize:10,padding:'3px 6px',borderRadius:4,color:'rgba(255,255,255,0.3)',background:'transparent',border:'none',cursor:'pointer'}}>— Aucune</button>
+                              {RECIPES.map(r => (
+                                <button key={r.id} onClick={() => assign(dk, mKey, r.id)}
+                                  style={{display:'flex',alignItems:'center',gap:4,width:'100%',textAlign:'left',fontSize:10,padding:'3px 6px',borderRadius:4,color:'rgba(255,255,255,0.75)',background:'transparent',border:'none',cursor:'pointer'}}>
+                                  <span>{r.img}</span><span style={{overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{r.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  function AdminRecipes() {
+    const [filter, setFilter] = useState('Tous');
+    const [showNew, setShowNew] = useState(false);
+    const cats = ['Tous','Petit déjeuner','Déjeuner','Dîner','Collation'];
+    const visible = recipes.filter(r => filter==='Tous' || r.cat===filter);
+    return (
+      <div className="fade-in">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold">Gestion des recettes</h2>
+          <button onClick={() => setShowNew(!showNew)} className="px-3 py-2 bg-apurple text-white rounded-xl text-xs font-semibold hover:bg-apurple/80">
+            + Nouvelle recette
+          </button>
+        </div>
+        {showNew && (
+          <div className="bg-acard border border-apurple/20 rounded-2xl p-4 mb-4 fade-in">
+            <p className="text-sm font-semibold mb-3">Créer une recette</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-xs text-gray-400 mb-1 block">Nom</label>
+                <input className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" placeholder="Nom de la recette"/>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Catégorie</label>
+                <select className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple">
+                  {cats.slice(1).map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Temps (min)</label>
+                <input type="number" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" placeholder="20"/>
+              </div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Kcal</label><input type="number" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" placeholder="400"/></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Protéines (g)</label><input type="number" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" placeholder="30"/></div>
+              <div className="col-span-2">
+                <label className="text-xs text-gray-400 mb-1 block">Allergènes (séparés par virgule)</label>
+                <input className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" placeholder="gluten, lait, oeuf..."/>
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs text-gray-400 mb-1 block">Ingrédients (un par ligne)</label>
+                <textarea rows="3" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" placeholder="200g poulet&#10;150g riz..."/>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button className="flex-1 py-2 bg-apurple rounded-xl text-sm font-semibold text-white hover:bg-apurple/80">Enregistrer</button>
+              <button onClick={() => setShowNew(false)} className="flex-1 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white">Annuler</button>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {cats.map(c => (
+            <button key={c} onClick={() => setFilter(c)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs ${filter===c ? 'bg-apurple text-white' : 'bg-acard text-gray-400'}`}>
+              {c}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {visible.map(r => (
+            <div key={r.id} className="bg-acard rounded-xl flex items-center gap-3 p-3">
+              <span className="text-2xl">{r.img}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{r.name}</p>
+                <p className="text-xs text-gray-400">{r.cat} · {r.time} min · {r.kcal} kcal · {r.p}g prot.</p>
+                {r.allergens.length > 0 && (
+                  <p className="text-xs text-red-400 mt-0.5">⚠️ {r.allergens.join(', ')}</p>
+                )}
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button className="px-2 py-1 text-xs bg-apurple/20 text-apurpl rounded-lg hover:bg-apurple/30">Modifier</button>
+                <button className="px-2 py-1 text-xs bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20">Sup.</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function AdminJoueurs() {
+    const [playerList, setPlayerList] = useState(USERS.filter(u=>u.role==='joueur'));
+    const [editing, setEditing] = useState(null); // null | 'new' | player object
+    const SPORTS = Object.keys(SPORT_ICONS);
+    const COACHES = USERS.filter(u => u.role === 'coach');
+    const emptyForm = { name:'', sport:'Judo', club:'', category:'', height:'', weight_start:'', weight_target:'', allergies:'', preferences:'', coachId:'' };
+    const [form, setForm] = useState(emptyForm);
+
+    function openEdit(p) { setEditing(p); setForm({ ...emptyForm, name:p.name, sport:p.sport||'Judo', club:p.club||'', category:p.category||'', height:p.height||'', weight_start:p.weight_start||'', weight_target:p.weight_target||'', allergies:(p.allergies||[]).join(', '), preferences:(p.preferences||[]).join(', '), coachId:p.coachId||'' }); }
+    function openNew() { setEditing('new'); setForm(emptyForm); }
+    function saveForm() {
+      const base = { role:'joueur', password:'1234', email:form.name.split(' ')[0].toLowerCase(),
+        weightHistory:[], todayWeight:parseFloat(form.weight_start)||0, todayForm:7,
+        allergies: form.allergies ? form.allergies.split(',').map(s=>s.trim()).filter(Boolean) : [],
+        preferences: form.preferences ? form.preferences.split(',').map(s=>s.trim()).filter(Boolean) : [],
+        sport:form.sport, name:form.name, club:form.club, category:form.category,
+        height:parseFloat(form.height)||0, weight_start:parseFloat(form.weight_start)||0,
+        weight_target:parseFloat(form.weight_target)||0,
+        coachId: form.coachId ? parseInt(form.coachId) : null,
+      };
+      if (editing === 'new') {
+        const newP = { ...base, id: Date.now() };
+        setPlayerList([...playerList, newP]);
+      } else {
+        setPlayerList(playerList.map(p => p.id === editing.id ? {...p,...base} : p));
+      }
+      setEditing(null);
+    }
+    function deleteP(id) { setPlayerList(playerList.filter(p=>p.id!==id)); }
+
+    const f = (k, label, type='text', extra={}) => (
+      <div key={k}>
+        <label className="text-xs text-gray-400 mb-1 block">{label}</label>
+        <input type={type} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}
+          className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple" {...extra}/>
+      </div>
+    );
+
+    return (
+      <div className="fade-in space-y-3">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-lg font-bold">Gestion des joueurs</h2>
+          <button onClick={openNew} className="px-3 py-2 bg-apurple text-white rounded-xl text-xs font-semibold hover:bg-apurple/80">+ Ajouter</button>
+        </div>
+
+        {editing && (
+          <div className="bg-acard border border-apurple/30 rounded-2xl p-4 mb-4 fade-in">
+            <p className="font-semibold text-sm mb-3">{editing==='new' ? 'Nouveau joueur' : `Modifier — ${editing.name}`}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">{f('name','Nom complet')}</div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Sport</label>
+                <select value={form.sport} onChange={e=>setForm({...form,sport:e.target.value})}
+                  className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple">
+                  {SPORTS.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              {f('club','Club')}
+              {f('category','Catégorie')}
+              {f('height','Taille (cm)','number')}
+              {f('weight_start','Poids départ (kg)','number',{step:'0.1'})}
+              {f('weight_target','Poids cible (kg)','number',{step:'0.1'})}
+              <div className="col-span-2">
+                <label className="text-xs text-gray-400 mb-1 block">Coach attitré</label>
+                <select value={form.coachId} onChange={e=>setForm({...form,coachId:e.target.value})}
+                  className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm outline-none focus:border-apurple">
+                  <option value=''>-- Aucun coach --</option>
+                  {COACHES.map(c => <option key={c.id} value={c.id}>{c.name}{c.club ? ` (${c.club})` : ''}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">{f('allergies','Allergies (séparées par virgule)')}</div>
+              <div className="col-span-2">{f('preferences','Préférences alimentaires (séparées par virgule)')}</div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button onClick={saveForm} className="flex-1 py-2 bg-apurple rounded-xl text-sm font-semibold text-white hover:bg-apurple/80">Enregistrer</button>
+              <button onClick={() => setEditing(null)} className="flex-1 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white">Annuler</button>
+            </div>
+          </div>
+        )}
+
+        {playerList.map(p => (
+          <div key={p.id} className="bg-acard rounded-2xl p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{getSportIcon(p.sport)}</span>
+                  <div>
+                    <p className="font-semibold">{p.name}</p>
+                    <p className="text-xs text-gray-400">{p.club} · {p.category} · {p.height}cm</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                  <span>Départ : <span className="text-gray-300">{p.weight_start}kg</span></span>
+                  <span>→</span>
+                  <span>Cible : <span className="text-agreen font-semibold">{p.weight_target}kg</span></span>
+                  {p.coachId && (() => { const c = USERS.find(u=>u.id===p.coachId); return c ? <span className="text-apurpl">· 👤 {c.name}</span> : null; })()}
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {(p.allergies||[]).map(a => <span key={a} className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">⚠️ {a}</span>)}
+                  {(p.preferences||[]).map(a => <span key={a} className="text-xs bg-agreen/20 text-agreen px-2 py-0.5 rounded-full">{a}</span>)}
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0 ml-2">
+                <button onClick={() => openEdit(p)} className="text-xs text-apurpl px-2 py-1.5 bg-apurple/10 rounded-xl hover:bg-apurple/20">Modifier</button>
+                <button onClick={() => deleteP(p.id)} className="text-xs text-red-400 px-2 py-1.5 bg-red-500/10 rounded-xl hover:bg-red-500/20">Sup.</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <AdminNav/>
+      <main className="max-w-4xl mx-auto px-4" style={{paddingTop:'5rem'}}>
+        {tab==='dashboard'   && <AdminDashboard/>}
+        {tab==='suivi'       && !adminSelectedPlayer && <AdminSuivi/>}
+        {tab==='suivi-detail' && adminSelectedPlayer && <AdminPlayerDetail player={adminSelectedPlayer}/>}
+        {tab==='menus'       && <AdminMenus/>}
+        {tab==='recettes'    && <AdminRecipes/>}
+        {tab==='joueurs'     && <AdminJoueurs/>}
+      </main>
+    </div>
+  );
+}
+
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [user, setUser] = useState(null);
+  if (!user) return <Login onLogin={setUser}/>;
+  if (user.role === 'joueur') return <PlayerApp user={user} onLogout={() => setUser(null)}/>;
+  if (user.role === 'coach')  return <CoachApp  user={user} onLogout={() => setUser(null)}/>;
+  if (user.role === 'expert') return <PlayerApp user={{...user, role:'joueur', weightHistory:[{date:'29/06',w:75}], weight_start:75, weight_target:70, height:180, todayWeight:75, todayForm:9, sport:'Judo', category:'Expert', coachId:3}} onLogout={() => setUser(null)}/>;
+  if (user.role === 'admin')  return <AdminApp  user={user} onLogout={() => setUser(null)}/>;
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
