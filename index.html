@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.21.3/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -42,6 +43,27 @@
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef, useMemo } = React;
+
+// ─── SUPABASE ─────────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://jfhynabffsblvndvxqen.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmaHluYWJmZnNibHZuZHZ4cWVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NTg5NTUsImV4cCI6MjA5ODMzNDk1NX0.ua1YjOo--AepaXAVdyXrtm-_wGgctaK3x1ot2K7CyG8';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+async function buildUserFromSupabase(supaUser) {
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', supaUser.id).single();
+  if (!profile) return null;
+  const { data: wh } = await sb.from('weight_history').select('*').eq('user_id', supaUser.id).order('date');
+  return {
+    ...profile,
+    coachId: profile.coach_id,
+    startDate: profile.start_date,
+    todayForm: profile.today_form,
+    todayHydration: profile.today_hydration,
+    todayWeight: profile.today_weight,
+    hydrationGoal: profile.hydration_goal,
+    weightHistory: (wh || []).map(r => ({ date: r.date.slice(5).replace('-','/'), w: r.weight })),
+  };
+}
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -434,20 +456,25 @@ function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
   const accounts = [
-    { label:'Karim (Judo)', email:'karim', pass:'1234' },
-    { label:'Emma (Judo)', email:'emma', pass:'1234' },
-    { label:'Ivan (Basket)', email:'ivan', pass:'1234' },
-    { label:'Sophie (Coach)', email:'coach', pass:'1234' },
-    { label:'Dinis (Coach)', email:'dinis', pass:'1234' },
-    { label:'Théo (Expert)', email:'theo', pass:'1234' },
-    { label:'Admin', email:'admin', pass:'admin' },
+    { label:'Karim (Judo)',    email:'karim@arcana.app',  pass:'1234' },
+    { label:'Emma (Judo)',     email:'emma@arcana.app',   pass:'1234' },
+    { label:'Ivan (Basket)',   email:'ivan@arcana.app',   pass:'1234' },
+    { label:'Sophie (Coach)',  email:'coach@arcana.app',  pass:'1234' },
+    { label:'Dinis (Coach)',   email:'dinis@arcana.app',  pass:'1234' },
+    { label:'Théo (Expert)',   email:'theo@arcana.app',   pass:'1234' },
+    { label:'Admin',           email:'admin@arcana.app',  pass:'admin' },
   ];
-  function doLogin(e) {
+  async function doLogin(e) {
     e.preventDefault();
-    const user = USERS.find(u => u.email === email && u.password === pass);
-    if (user) onLogin(user);
-    else setErr('Identifiants incorrects');
+    setErr(''); setLoading(true);
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error || !data.user) { setErr('Identifiants incorrects'); setLoading(false); return; }
+    const user = await buildUserFromSupabase(data.user);
+    if (!user) { setErr('Profil introuvable'); setLoading(false); return; }
+    onLogin(user);
+    setLoading(false);
   }
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{background:'radial-gradient(ellipse at 50% 0%, rgba(13,201,170,0.12) 0%, #0D0D1A 70%)'}}>
@@ -470,9 +497,9 @@ function Login({ onLogin }) {
               placeholder="••••••••"/>
           </div>
           {err && <p className="text-red-400 text-xs text-center">{err}</p>}
-          <button type="submit" className="w-full py-3 rounded-xl font-semibold text-white text-sm"
-            style={{background:'linear-gradient(135deg,#0DC9AA,#0A9E87)'}}>
-            Se connecter
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-semibold text-white text-sm"
+            style={{background:'linear-gradient(135deg,#0DC9AA,#0A9E87)',opacity:loading?0.7:1}}>
+            {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
         <div className="mt-6">
@@ -905,13 +932,22 @@ function PlayerTracking({ user, lang }) {
   const hydGoal = user.hydrationGoal || 2.5;
   const hydPct = Math.min(100, Math.round((hydration / hydGoal) * 100));
 
-  function saveEntry() {
-    if (!newWeight) return;
-    const next = [...history, { date:'29/06', w:parseFloat(newWeight) }];
-    setHistory(next);
-    setNewWeight('');
+  async function saveEntry() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayLabel = today.slice(5).replace('-','/');
+    // Toujours sauvegarder forme et hydratation
+    await sb.from('profiles').update({ today_form: form, today_hydration: hydration }).eq('id', user.id);
+    await sb.from('daily_tracking').upsert({ user_id: user.id, date: today, form, hydration,
+      weight: newWeight ? parseFloat(newWeight) : null }, { onConflict: 'user_id,date' });
+    if (newWeight) {
+      const w = parseFloat(newWeight);
+      await sb.from('weight_history').insert({ user_id: user.id, date: today, weight: w });
+      await sb.from('profiles').update({ today_weight: w }).eq('id', user.id);
+      setHistory(prev => [...prev, { date: todayLabel, w }]);
+      setNewWeight('');
+    }
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 2500);
   }
   const formEmoji = form >= 9 ? '🚀' : form >= 7 ? '💪' : form >= 5 ? '😐' : '😴';
   const hydEmoji = hydPct >= 100 ? '💧✅' : hydPct >= 60 ? '💧' : '🫙';
@@ -1009,16 +1045,39 @@ function PlayerTracking({ user, lang }) {
 
 function ChatView({ userId, convList, lang }) {
   const [activeId, setActiveId] = useState(convList[0]?.id || '');
-  const [allMsgs, setAllMsgs] = useState(CHATS);
+  const [allMsgs, setAllMsgs] = useState({});
   const [msg, setMsg] = useState('');
   const bottomRef = useRef();
 
+  useEffect(() => {
+    if (!activeId) return;
+    sb.from('messages').select('*').eq('conversation_id', activeId).order('created_at')
+      .then(({ data }) => {
+        if (!data) return;
+        const partnerName = convList.find(c => c.id === activeId)?.name || '?';
+        setAllMsgs(prev => ({
+          ...prev,
+          [activeId]: data.map(m => ({
+            from: m.from_id,
+            name: m.from_id === userId ? 'Moi' : partnerName,
+            text: m.content,
+            time: new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+          }))
+        }));
+        setTimeout(() => bottomRef.current?.scrollIntoView({behavior:'smooth'}), 100);
+      });
+  }, [activeId]);
+
   const msgs = allMsgs[activeId] || [];
-  function send() {
+
+  async function send() {
     if (!msg.trim()) return;
     const now = new Date(); const hm = `${now.getHours()}h${String(now.getMinutes()).padStart(2,'0')}`;
-    setAllMsgs(prev => ({...prev, [activeId]: [...(prev[activeId]||[]), { from:userId, name:'Moi', text:msg, time:hm }]}));
-    setMsg(''); setTimeout(() => bottomRef.current?.scrollIntoView({behavior:'smooth'}), 50);
+    const optimistic = { from:userId, name:'Moi', text:msg, time:hm };
+    setAllMsgs(prev => ({...prev, [activeId]: [...(prev[activeId]||[]), optimistic]}));
+    setMsg('');
+    setTimeout(() => bottomRef.current?.scrollIntoView({behavior:'smooth'}), 50);
+    await sb.from('messages').insert({ from_id: userId, conversation_id: activeId, content: msg });
   }
 
   return (
@@ -1943,11 +2002,36 @@ function AdminApp({ user, onLogout }) {
 
 function App() {
   const [user, setUser] = useState(null);
+  const [appLoading, setAppLoading] = useState(true);
+
+  useEffect(() => {
+    sb.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const u = await buildUserFromSupabase(session.user);
+        if (u) setUser(u);
+      }
+      setAppLoading(false);
+    });
+  }, []);
+
+  async function handleLogout() {
+    await sb.auth.signOut();
+    setUser(null);
+  }
+
+  if (appLoading) return (
+    <div className="min-h-screen flex items-center justify-center" style={{background:'#0D0D1A'}}>
+      <div className="text-center">
+        <Logo size="lg"/>
+        <p className="text-gray-500 text-sm mt-4">Chargement...</p>
+      </div>
+    </div>
+  );
   if (!user) return <Login onLogin={setUser}/>;
-  if (user.role === 'joueur') return <PlayerApp user={user} onLogout={() => setUser(null)}/>;
-  if (user.role === 'coach')  return <CoachApp  user={user} onLogout={() => setUser(null)}/>;
-  if (user.role === 'expert') return <PlayerApp user={{...user, role:'joueur', weightHistory:[{date:'29/06',w:75}], weight_start:75, weight_target:70, height:180, todayWeight:75, todayForm:9, sport:'Judo', category:'Expert', coachId:3}} onLogout={() => setUser(null)}/>;
-  if (user.role === 'admin')  return <AdminApp  user={user} onLogout={() => setUser(null)}/>;
+  if (user.role === 'joueur') return <PlayerApp user={user} onLogout={handleLogout}/>;
+  if (user.role === 'coach')  return <CoachApp  user={user} onLogout={handleLogout}/>;
+  if (user.role === 'expert') return <PlayerApp user={{...user, role:'joueur', weightHistory: user.weightHistory?.length ? user.weightHistory : [{date:'29/06',w:75}], weight_start:75, weight_target:70, height:180, todayWeight:75, todayForm:9, sport:'Judo', category:'Expert'}} onLogout={handleLogout}/>;
+  if (user.role === 'admin')  return <AdminApp  user={user} onLogout={handleLogout}/>;
   return null;
 }
 
