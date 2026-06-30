@@ -470,7 +470,7 @@ function Login({ onLogin }) {
     e.preventDefault();
     setErr(''); setLoading(true);
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-    if (error || !data.user) { setErr('Identifiants incorrects'); setLoading(false); return; }
+    if (error || !data.user) { setErr(error?.message || 'Identifiants incorrects'); setLoading(false); return; }
     const user = await buildUserFromSupabase(data.user);
     if (!user) { setErr('Profil introuvable'); setLoading(false); return; }
     onLogin(user);
